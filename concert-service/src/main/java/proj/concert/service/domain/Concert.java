@@ -16,16 +16,23 @@ import proj.concert.common.jackson.LocalDateTimeSerializer;
 @Table(name = "CONCERTS")
 public class Concert{
 
-    // TODO Implement this class.
     @Id
     @GeneratedValue
     @Column(name = "ID", nullable = false)
     private Long id;
     @Column(name = "TITLE", nullable = false)
     private String title;
+    @Column(name = "IMAGE_NAME", nullable = false)
     private String imageName;
+    @Column(name = "BLURB", nullable = false)
     private String blrb;
+    @ElementCollection
+    @CollectionTable(name = "CONCERT_DATES", joinColumns = @JoinColumn(name = "CONCERT_ID"))
     private Set<LocalDateTime> dates;
+    @ManyToMany
+    @JoinTable(name = "CONCERT_PERFORMER",
+            joinColumns = @JoinColumn(name = "CONCERT_ID"),
+            inverseJoinColumns = @JoinColumn(name = "PERFORMER_ID"))
     private List<Performer> performers;
 
     public Concert() {}
@@ -49,8 +56,8 @@ public class Concert{
     public void setImageName(String imageName) { this.imageName = imageName; }
     public String getBlrb() { return blrb; }
     public void setBlrb(String blrb) { this.blrb = blrb; }
-    @JsonSerialize(using = LocalDateTimeSerializer.class)
-    @JsonDeserialize(using = LocalDateTimeDeserializer.class)
+    @JsonSerialize(contentUsing = LocalDateTimeSerializer.class)
+    @JsonDeserialize(contentUsing = LocalDateTimeDeserializer.class)
     public Set<LocalDateTime> getDates() {
         return dates;
     }
