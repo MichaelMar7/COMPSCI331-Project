@@ -7,8 +7,6 @@ import javax.persistence.*;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
 import proj.concert.common.jackson.LocalDateTimeDeserializer;
 import proj.concert.common.jackson.LocalDateTimeSerializer;
 
@@ -24,12 +22,14 @@ public class Concert{
     private String title;
     @Column(name = "IMAGE_NAME", nullable = false)
     private String imageName;
-    @Column(name = "BLURB", nullable = false)
+    @Column(name = "BLURB", length = 512)
     private String blrb;
     @ElementCollection
     @CollectionTable(name = "CONCERT_DATES", joinColumns = @JoinColumn(name = "CONCERT_ID"))
     private Set<LocalDateTime> dates;
-    @ManyToMany
+    @ManyToMany(
+            cascade = {CascadeType.PERSIST, CascadeType.REMOVE},
+            fetch = FetchType.LAZY)
     @JoinTable(name = "CONCERT_PERFORMER",
             joinColumns = @JoinColumn(name = "CONCERT_ID"),
             inverseJoinColumns = @JoinColumn(name = "PERFORMER_ID"))
