@@ -1,4 +1,4 @@
-package proj.concert.common.types;
+package proj.concert.common.dto.types;
 
 /**
  * Enumerated type for classifying performers.
