@@ -1,4 +1,4 @@
-package proj.concert.common.dto.types;
+package proj.concert.common.types;
 
 public enum BookingStatus {
     Booked, Unbooked, Any
