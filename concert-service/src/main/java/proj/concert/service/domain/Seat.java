@@ -36,6 +36,7 @@ public class Seat{
 		this.cost = cost;
 	}
 
+	public Long getId() { return id; }
 	public String getLabel() { return label; }
 	public void setLabel(String label) { this.label = label; }
 	public boolean isBooked() { return isBooked; }
