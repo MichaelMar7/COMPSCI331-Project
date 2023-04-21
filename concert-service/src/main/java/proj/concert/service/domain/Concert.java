@@ -22,18 +22,19 @@ public class Concert{
     private String title;
     @Column(name = "IMAGE_NAME", nullable = false)
     private String imageName;
-    @Column(name = "BLURB", length = 512)
+    @Column(name = "BLURB", length = 2048)
     private String blrb;
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "CONCERT_DATES", joinColumns = @JoinColumn(name = "CONCERT_ID"))
-    private Set<LocalDateTime> dates;
+    @Column(name = "DATE", nullable = false)
+    private Set<LocalDateTime> dates = new HashSet<>();
     @ManyToMany(
             cascade = {CascadeType.PERSIST, CascadeType.REMOVE},
             fetch = FetchType.LAZY)
     @JoinTable(name = "CONCERT_PERFORMER",
             joinColumns = @JoinColumn(name = "CONCERT_ID"),
             inverseJoinColumns = @JoinColumn(name = "PERFORMER_ID"))
-    private List<Performer> performers;
+    private List<Performer> performers = new ArrayList<>();
 
     public Concert() {}
     public Concert(Long id,
@@ -44,8 +45,6 @@ public class Concert{
         this.title = title;
         this.imageName = imageName;
         this.blrb = blrb;
-        dates = new HashSet<>();
-        performers = new ArrayList<>();
     }
 
     public Long getId() { return id; }
