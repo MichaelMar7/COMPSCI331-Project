@@ -1,5 +1,6 @@
 package proj.concert.service.services;
 
+import proj.concert.common.dto.ConcertDTO;
 import proj.concert.service.domain.*;
 import proj.concert.service.mapper.ConcertMapper;
 
@@ -34,7 +35,7 @@ public class ConcertResource {
             if (concert == null) {
                 builder = Response.status(404);
             } else {
-                proj.concert.common.dto.ConcertDTO concertDTO = ConcertMapper.toDto(concert);
+                ConcertDTO concertDTO = ConcertMapper.toDto(concert);
                 builder = Response.ok(concertDTO);
             }
 
