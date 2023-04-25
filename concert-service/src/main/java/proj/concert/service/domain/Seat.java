@@ -18,10 +18,6 @@ public class Seat {
 	private String label;
 	private BigDecimal price;
 
-	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "CONCERT_ID")
-	private Concert concert;
-
 	public Seat() {}
 
 	public Seat(String label, boolean isBooked, LocalDateTime date, BigDecimal price) {
@@ -70,14 +66,6 @@ public class Seat {
 
 	public void setDate(LocalDateTime date) {
 		this.date = date;
-	}
-
-	public Concert getConcert() {
-		return concert;
-	}
-
-	public void setConcert(Concert concert) {
-		this.concert = concert;
 	}
 
 	@Override
