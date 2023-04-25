@@ -1,8 +1,10 @@
 package proj.concert.service.services;
 
 import proj.concert.common.dto.ConcertDTO;
+import proj.concert.common.dto.ConcertSummaryDTO;
 import proj.concert.service.domain.*;
 import proj.concert.service.mapper.ConcertMapper;
+import proj.concert.service.mapper.ConcertSummaryMapper;
 
 import javax.persistence.*;
 import javax.persistence.EntityManager;
@@ -19,6 +21,9 @@ import java.util.stream.Collectors;
 @Path("/concert-service/concerts")
 public class ConcertResource {
     EntityManager em = PersistenceManager.instance().createEntityManager();
+    EntityTransaction tx = em.getTransaction();
+    ResponseBuilder builder;
+
 
     /*
     Retrieves a single concert using a given ID from the web service.
@@ -27,9 +32,6 @@ public class ConcertResource {
     @Path("{id}")
     @Produces(MediaType.APPLICATION_JSON)
     public Response getConcert(@PathParam("id") long id) {
-
-        EntityTransaction tx = em.getTransaction();
-        ResponseBuilder builder;
 
         try {
             tx.begin();
@@ -55,7 +57,6 @@ public class ConcertResource {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public Response getAllConcerts() {
-        EntityTransaction tx = em.getTransaction();
 
         try {
             tx.begin();
@@ -70,11 +71,33 @@ public class ConcertResource {
             em.close();
         }
     }
-//
-//    /*
-//    Retrieves a summary of all concerts from the web service
-//     */
-//    public Response getAllConcertSummaries() { return Response.noContent().build(); }
+
+    /*
+    Retrieves a summary of all concerts from the web service
+     */
+    @GET
+    @Path("/summaries")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getAllConcertSummaries() {
+
+        List<ConcertSummaryDTO> summaryDTOs = new ArrayList<>();
+        try {
+            tx.begin();
+            TypedQuery<Concert> concertQuery = em.createQuery("select c from Concert c",Concert.class);
+            List<Concert> concerts = concertQuery.getResultList();
+            for (Concert c: concerts) {
+                ConcertSummary summary = new ConcertSummary(
+                        c.getId(),
+                        c.getTitle(),
+                        c.getImageName()
+                );
+                summaryDTOs.add(ConcertSummaryMapper.toDto(summary));
+            }
+        } finally {
+            em.close();
+        }
+        return Response.ok(summaryDTOs).build();
+    }
 
     @POST
     @Produces(MediaType.APPLICATION_JSON)
