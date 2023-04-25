@@ -11,7 +11,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.ResponseBuilder;
 
-@Path("/concerts")
+@Path("/concert-service/concerts")
 public class ConcertResource {
 
     EntityManager em = PersistenceManager.instance().createEntityManager();
