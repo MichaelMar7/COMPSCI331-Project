@@ -10,14 +10,15 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+
 public class ConcertMapper {
 
-    public static Concert toDomainModel(ConcertDTO dtoConcert) {
+    public static Concert toDomainModel(ConcertDTO concertDTO) {
         Concert domainConcert = new Concert(
-                dtoConcert.getId(),
-                dtoConcert.getTitle(),
-                dtoConcert.getImageName(),
-                dtoConcert.getBlurb()
+                concertDTO.getId(),
+                concertDTO.getTitle(),
+                concertDTO.getImageName(),
+                concertDTO.getBlurb()
         );
         return domainConcert;
     }
@@ -40,6 +41,15 @@ public class ConcertMapper {
         }
         dtoConcert.setDates(dates);
         return dtoConcert;
+    }
+
+    public static Concert updateFromDto(ConcertDTO concertDTO, Concert concert) {
+        concert.setId(concertDTO.getId());
+        concert.setTitle(concertDTO.getTitle());
+        concert.setBlrb(concertDTO.getBlurb());
+        concert.setImageName(concertDTO.getImageName());
+
+        return concert;
     }
 
 }
