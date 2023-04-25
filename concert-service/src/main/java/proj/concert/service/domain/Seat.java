@@ -2,6 +2,7 @@ package proj.concert.service.domain;
 
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
+import proj.concert.common.types.BookingStatus;
 
 import javax.persistence.*;
 import java.math.BigDecimal;
@@ -17,6 +18,7 @@ public class Seat {
 	private LocalDateTime date;
 	private String label;
 	private BigDecimal price;
+	private BookingStatus bookingStatus;
 
 	public Seat() {}
 
@@ -59,6 +61,9 @@ public class Seat {
 	public void setBooked(boolean booked) {
 		isBooked = booked;
 	}
+	public BookingStatus getBookingStatus() { return bookingStatus; }
+
+	public void setBookingStatus(BookingStatus bookingStatus) { this.bookingStatus = bookingStatus; }
 
 	public LocalDateTime getDate() {
 		return date;
@@ -68,6 +73,7 @@ public class Seat {
 		this.date = date;
 	}
 
+	
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) return true;
@@ -78,11 +84,10 @@ public class Seat {
 				.append(id, seat.id)
 				.append(label, seat.label)
 				.append(price, seat.price)
-				.append(isBooked, seat.isBooked)
+				.append(bookingStatus, seat.bookingStatus)
 				.append(date, seat.date)
 				.isEquals();
 	}
-
 
 	@Override
 	public int hashCode() {
@@ -90,7 +95,7 @@ public class Seat {
 				.append(id)
 				.append(label)
 				.append(price)
-				.append(isBooked)
+				.append(bookingStatus)
 				.append(date)
 				.toHashCode();
 	}
