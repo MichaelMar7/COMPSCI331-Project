@@ -57,8 +57,6 @@ public class Concert{
     public void setBlrb(String blrb) { this.blrb = blrb; }
     @JsonSerialize(contentUsing = LocalDateTimeSerializer.class)
     @JsonDeserialize(contentUsing = LocalDateTimeDeserializer.class)
-    public Set<LocalDateTime> getDates() {
-        return dates;
-    }
+    public Set<LocalDateTime> getDates() { return dates; }
     public List<Performer> getPerformers() { return performers; }
 }

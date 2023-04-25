@@ -16,7 +16,7 @@ import java.util.*;
 import java.net.URI;
 import java.util.stream.Collectors;
 
-@Path("/concerts")
+@Path("/concert-service/concerts")
 public class ConcertResource {
     EntityManager em = PersistenceManager.instance().createEntityManager();
 

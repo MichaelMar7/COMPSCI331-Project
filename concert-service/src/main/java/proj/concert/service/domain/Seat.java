@@ -1,5 +1,9 @@
 package proj.concert.service.domain;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import proj.concert.common.jackson.LocalDateTimeDeserializer;
+import proj.concert.common.jackson.LocalDateTimeSerializer;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import proj.concert.common.types.BookingStatus;
@@ -15,10 +19,12 @@ public class Seat {
 	@GeneratedValue
 	private long id;
 	private boolean isBooked;
+  @JsonSerialize(using = LocalDateTimeSerializer.class)
+	@JsonDeserialize(using = LocalDateTimeDeserializer.class)
 	private LocalDateTime date;
 	private String label;
 	private BigDecimal price;
-	private BookingStatus bookingStatus;
+	private BookingStatus bookingStatus = BookingStatus.Any;
 
 	public Seat() {}
 
@@ -32,10 +38,6 @@ public class Seat {
 
 	public Long getId() {
 		return id;
-	}
-
-	public void setId(Long id) {
-		this.id = id;
 	}
 
 	public String getLabel() {
@@ -65,15 +67,12 @@ public class Seat {
 
 	public void setBookingStatus(BookingStatus bookingStatus) { this.bookingStatus = bookingStatus; }
 
+	@JsonSerialize(using = LocalDateTimeSerializer.class)
+	@JsonDeserialize(using = LocalDateTimeDeserializer.class)
 	public LocalDateTime getDate() {
 		return date;
 	}
 
-	public void setDate(LocalDateTime date) {
-		this.date = date;
-	}
-
-	
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) return true;
