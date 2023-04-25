@@ -25,6 +25,8 @@ public class ConcertDTO {
     private String title;
     private String imageName;
     private String blrb;
+    @JsonSerialize(contentUsing = LocalDateTimeSerializer.class)
+    @JsonDeserialize(contentUsing = LocalDateTimeDeserializer.class)
     private List<LocalDateTime> dates = new ArrayList<>();
     private List<PerformerDTO> performers = new ArrayList<>();
 
@@ -70,8 +72,8 @@ public class ConcertDTO {
         return blrb;
     }
 
-    @JsonSerialize(using = LocalDateTimeSerializer.class)
-    @JsonDeserialize(using = LocalDateTimeDeserializer.class)
+    @JsonSerialize(contentUsing = LocalDateTimeSerializer.class)
+    @JsonDeserialize(contentUsing = LocalDateTimeDeserializer.class)
     public List<LocalDateTime> getDates() {
         return dates;
     }
