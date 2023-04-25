@@ -8,45 +8,30 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "SEATS")
 public class Seat {
 
 	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long id;
-	@Column(name = "label", nullable = false)
-	private String label;
-	@Column(name = "price", nullable = false)
-	private BigDecimal price;
-	@Column(name = "isBooked", nullable = false)
+	@GeneratedValue
+	private long id;
 	private boolean isBooked;
-	@Column(name = "date", nullable = false)
 	private LocalDateTime date;
-	@ManyToOne(cascade = CascadeType.PERSIST, fetch = FetchType.LAZY)
-	@JoinColumn(name = "concert_id")
+	private String label;
+	private BigDecimal price;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "CONCERT_ID")
 	private Concert concert;
-	@ManyToOne(cascade = CascadeType.PERSIST, fetch = FetchType.LAZY)
-	@JoinColumn(name = "performer_id")
-	private Performer performer;
 
-	public Seat() {
-	}
+	public Seat() {}
 
-	public Seat(String label, BigDecimal price, boolean isBooked, LocalDateTime date, Concert concert, Performer performer) {
+	public Seat(String label, boolean isBooked, LocalDateTime date, BigDecimal price) {
 		this.label = label;
-		this.price = price;
 		this.isBooked = isBooked;
 		this.date = date;
-		this.concert = concert;
-		this.performer = performer;
-	}
-
-	public Seat(String seatLabel, boolean b, LocalDateTime date, BigDecimal price) {
-		this.label = seatLabel;
-		this.isBooked = b;
-		this.date = date;
 		this.price = price;
 	}
+
+
 	public Long getId() {
 		return id;
 	}
@@ -95,13 +80,6 @@ public class Seat {
 		this.concert = concert;
 	}
 
-	public Performer getPerformer() {
-		return performer;
-	}
-
-	public void setPerformer(Performer performer) {
-		this.performer = performer;
-	}
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) return true;
