@@ -1,11 +1,8 @@
 package proj.concert.service.services;
 
-import proj.concert.common.dto.ConcertDTO;
-import proj.concert.common.dto.ConcertInfoSubscriptionDTO;
-import proj.concert.common.dto.ConcertSummaryDTO;
+import proj.concert.common.dto.*;
 import proj.concert.service.domain.*;
-import proj.concert.service.mapper.ConcertMapper;
-import proj.concert.service.mapper.ConcertSummaryMapper;
+import proj.concert.service.mapper.*;
 
 import javax.persistence.*;
 import javax.persistence.EntityManager;
@@ -100,6 +97,48 @@ public class ConcertResource {
             em.close();
         }
         return Response.ok(summaryDTOs).build();
+    }
+
+    @GET
+    @Path("/performers/{id}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getPerformers(@PathParam("id") long id) {
+
+        try {
+            tx.begin();
+            Performer performer = em.find(Performer.class, id);
+            tx.commit();
+
+            if (performer == null) {
+                builder = Response.status(404);
+            } else {
+                PerformerDTO performerDTO = PerformerMapper.toDto(performer);
+                builder = Response.ok(performerDTO);
+            }
+
+        } finally {
+            em.close();
+        }
+        return builder.build();
+    }
+
+    @GET
+    @Path("/performers")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getAllPerformers() {
+        List<PerformerDTO> performerDTOS = new ArrayList<>();
+        try {
+            tx.begin();
+            TypedQuery<Performer> performerQuery = em.createQuery("select p from Performer p",Performer.class);
+            List<Performer> performers = performerQuery.getResultList();
+            performerDTOS = performers.stream()
+                    .map(performer -> PerformerMapper.toDto(performer))
+                    .collect(Collectors.toList());
+            tx.commit();
+        } finally {
+            em.close();
+        }
+        return Response.ok(performerDTOS).build();
     }
 
     @POST
