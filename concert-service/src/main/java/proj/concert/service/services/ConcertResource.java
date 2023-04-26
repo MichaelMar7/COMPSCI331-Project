@@ -1,16 +1,15 @@
 package proj.concert.service.services;
 
-import proj.concert.common.dto.ConcertDTO;
-import proj.concert.common.dto.ConcertSummaryDTO;
+import proj.concert.common.dto.*;
 import proj.concert.service.domain.*;
-import proj.concert.service.mapper.ConcertMapper;
-import proj.concert.service.mapper.ConcertSummaryMapper;
+import proj.concert.service.mapper.*;
 
 import javax.persistence.*;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityTransaction;
 import javax.persistence.TypedQuery;
 import javax.ws.rs.*;
+import javax.ws.rs.container.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.ResponseBuilder;
@@ -18,18 +17,18 @@ import java.util.*;
 import java.net.URI;
 import java.util.stream.Collectors;
 
-@Path("/concert-service/concerts")
+@Path("/concert-service")
 public class ConcertResource {
     EntityManager em = PersistenceManager.instance().createEntityManager();
     EntityTransaction tx = em.getTransaction();
     ResponseBuilder builder;
-
+    private final static Map<ConcertInfoSubscriptionDTO, AsyncResponse> subs = new HashMap<>(); // subs used when specific concerts is getting near concert cap.
 
     /*
     Retrieves a single concert using a given ID from the web service.
      */
     @GET
-    @Path("{id}")
+    @Path("/concerts/{id}")
     @Produces(MediaType.APPLICATION_JSON)
     public Response getConcert(@PathParam("id") long id) {
 
@@ -55,28 +54,29 @@ public class ConcertResource {
     Retrieves all concerts from the web service
      */
     @GET
+    @Path("/concerts")
     @Produces(MediaType.APPLICATION_JSON)
     public Response getAllConcerts() {
-
+        List<ConcertDTO> concertDTOs = new ArrayList<>();
         try {
             tx.begin();
             TypedQuery<Concert> concertQuery = em.createQuery("select c from Concert c",Concert.class);
             List<Concert> concerts = concertQuery.getResultList();
-            List<proj.concert.common.dto.ConcertDTO> concertDTOs = concerts.stream()
+            concertDTOs = concerts.stream()
                     .map(concert -> ConcertMapper.toDto(concert))
                     .collect(Collectors.toList());
             tx.commit();
-            return Response.ok(concertDTOs).build();
         } finally {
             em.close();
         }
+        return Response.ok(concertDTOs).build();
     }
 
     /*
     Retrieves a summary of all concerts from the web service
      */
     @GET
-    @Path("/summaries")
+    @Path("/concerts/summaries")
     @Produces(MediaType.APPLICATION_JSON)
     public Response getAllConcertSummaries() {
 
@@ -99,6 +99,48 @@ public class ConcertResource {
         return Response.ok(summaryDTOs).build();
     }
 
+    @GET
+    @Path("/performers/{id}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getPerformers(@PathParam("id") long id) {
+
+        try {
+            tx.begin();
+            Performer performer = em.find(Performer.class, id);
+            tx.commit();
+
+            if (performer == null) {
+                builder = Response.status(404);
+            } else {
+                PerformerDTO performerDTO = PerformerMapper.toDto(performer);
+                builder = Response.ok(performerDTO);
+            }
+
+        } finally {
+            em.close();
+        }
+        return builder.build();
+    }
+
+    @GET
+    @Path("/performers")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getAllPerformers() {
+        List<PerformerDTO> performerDTOS = new ArrayList<>();
+        try {
+            tx.begin();
+            TypedQuery<Performer> performerQuery = em.createQuery("select p from Performer p",Performer.class);
+            List<Performer> performers = performerQuery.getResultList();
+            performerDTOS = performers.stream()
+                    .map(performer -> PerformerMapper.toDto(performer))
+                    .collect(Collectors.toList());
+            tx.commit();
+        } finally {
+            em.close();
+        }
+        return Response.ok(performerDTOS).build();
+    }
+
     @POST
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
@@ -118,19 +160,19 @@ public class ConcertResource {
     }
 
     @PUT
-    @Path("{id}")
+    @Path("/concerts/{id}")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
     public Response updateConcert(@PathParam("id") long id, ConcertDTO concertDTO) {
 
         EntityTransaction tx = em.getTransaction();
-        ResponseBuilder builder;
+        //ResponseBuilder builder;
         Concert updatedConcert = null;
         try {
             tx.begin();
             Concert concert = em.find(Concert.class, id);
             if (concert == null) {
-                builder = Response.status(Response.Status.NOT_FOUND);
+                return Response.status(Response.Status.NOT_FOUND).build();
             }
             updatedConcert = ConcertMapper.updateFromDto(concertDTO, concert);
             em.merge(updatedConcert);
@@ -140,17 +182,14 @@ public class ConcertResource {
         }
 
         if (updatedConcert == null) {
-            builder = Response.status(Response.Status.INTERNAL_SERVER_ERROR);
-        } else {
-            ConcertDTO updatedConcertDTO = ConcertMapper.toDto(updatedConcert);
-            builder = Response.ok(updatedConcertDTO);
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
         }
-
-        return builder.build();
+        ConcertDTO updatedConcertDTO = ConcertMapper.toDto(updatedConcert);
+        return Response.ok(updatedConcertDTO).build();
     }
 
     @DELETE
-    @Path("{id}")
+    @Path("/concerts/{id}")
     public Response deleteConcert(@PathParam("id") long id) {
         EntityTransaction tx = em.getTransaction();
         ResponseBuilder builder;
