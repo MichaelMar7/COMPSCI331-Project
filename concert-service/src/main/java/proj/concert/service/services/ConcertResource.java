@@ -57,6 +57,7 @@ public class ConcertResource {
     Retrieves all concerts from the web service
      */
     @GET
+    @Path("/concerts")
     @Produces(MediaType.APPLICATION_JSON)
     public Response getAllConcerts() {
         List<ConcertDTO> concertDTOs = new ArrayList<>();
