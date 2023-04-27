@@ -2,9 +2,11 @@ package proj.concert.service.services;
 
 import proj.concert.common.dto.ConcertDTO;
 import proj.concert.common.dto.ConcertSummaryDTO;
+import proj.concert.common.dto.UserDTO;
 import proj.concert.service.domain.*;
 import proj.concert.service.mapper.ConcertMapper;
 import proj.concert.service.mapper.ConcertSummaryMapper;
+import proj.concert.service.mapper.UserMapper;
 
 import javax.persistence.*;
 import javax.persistence.EntityManager;
@@ -12,11 +14,14 @@ import javax.persistence.EntityTransaction;
 import javax.persistence.TypedQuery;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.ResponseBuilder;
 import java.util.*;
 import java.net.URI;
 import java.util.stream.Collectors;
+
+
 
 @Path("/concert-service/concerts")
 public class ConcertResource {
@@ -188,6 +193,41 @@ public class ConcertResource {
         return Response
                 .noContent()
                 .build();
+    }
+
+    @POST
+    @Path("/login")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response login(UserDTO userDTO) {
+        EntityManager em = PersistenceManager.instance().createEntityManager();
+        EntityTransaction tx = em.getTransaction();
+        ResponseBuilder builder;
+
+        try {
+            tx.begin();
+            TypedQuery<User> userQuery = em.createQuery("select u from User u where u.username = :username", User.class);
+            userQuery.setParameter("username", userDTO.getUsername());
+            List<User> users = userQuery.getResultList();
+            tx.commit();
+
+            if (users.isEmpty()) {
+                builder = Response.status(Response.Status.UNAUTHORIZED);
+            } else {
+                User user = users.get(0);
+                if (user.getPassword().equals(userDTO.getPassword())) {
+                    UserDTO loggedInUser = UserMapper.toDto(user);
+                    NewCookie authCookie = new NewCookie("auth", user.getId().toString(), "/", "", "Authentication Cookie", NewCookie.DEFAULT_MAX_AGE, false);
+                    builder = Response.ok(loggedInUser).cookie(authCookie);
+                } else {
+                    builder = Response.status(Response.Status.UNAUTHORIZED);
+                }
+            }
+
+        } finally {
+            em.close();
+        }
+        return builder.build();
     }
 
 }
