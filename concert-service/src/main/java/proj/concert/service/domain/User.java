@@ -24,14 +24,14 @@ public class User {
 
     protected User() {}
 
-    public User(Long id,
-                String username,
-                String password,
-                Long version) {
+    public User(Long id, String username, String password, Long version) {
         this.id = id;
         this.username = username;
         this.password = password;
         this.version = version;
+    }
+
+    public User(String username, String password) {
     }
 
     public Long getId() { return id; }
