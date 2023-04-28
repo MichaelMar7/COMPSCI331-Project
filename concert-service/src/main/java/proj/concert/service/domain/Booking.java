@@ -1,5 +1,10 @@
 package proj.concert.service.domain;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import proj.concert.common.jackson.LocalDateTimeDeserializer;
+import proj.concert.common.jackson.LocalDateTimeSerializer;
+
 import javax.persistence.*;
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -33,6 +38,8 @@ public class Booking {
         this.concertId = concertId;
     }
 
+    @JsonSerialize(contentUsing = LocalDateTimeSerializer.class)
+    @JsonDeserialize(contentUsing = LocalDateTimeDeserializer.class)
     public LocalDateTime getDate() {
         return date;
     }
