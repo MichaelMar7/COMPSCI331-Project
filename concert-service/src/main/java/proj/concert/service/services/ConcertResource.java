@@ -1,22 +1,15 @@
 package proj.concert.service.services;
 
-
-import proj.concert.common.dto.ConcertDTO;
-import proj.concert.common.dto.ConcertSummaryDTO;
-import proj.concert.common.dto.UserDTO;
+import proj.concert.common.dto.*;
+import proj.concert.common.types.BookingStatus;
 import proj.concert.service.domain.*;
-import proj.concert.service.mapper.ConcertMapper;
-import proj.concert.service.mapper.ConcertSummaryMapper;
-import proj.concert.service.mapper.UserMapper;
-
+import proj.concert.service.jaxrs.LocalDateTimeParam;
+import proj.concert.service.mapper.*;
 
 import javax.persistence.*;
-import javax.persistence.EntityManager;
-import javax.persistence.EntityTransaction;
-import javax.persistence.TypedQuery;
 import javax.ws.rs.*;
 import javax.ws.rs.container.*;
-import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.*;
 import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.ResponseBuilder;
@@ -24,21 +17,21 @@ import java.util.*;
 import java.net.URI;
 import java.util.stream.Collectors;
 
-
 @Path("/concert-service")
-
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
 public class ConcertResource {
+
     EntityManager em = PersistenceManager.instance().createEntityManager();
     EntityTransaction tx = em.getTransaction();
     ResponseBuilder builder;
     private final static Map<ConcertInfoSubscriptionDTO, AsyncResponse> subs = new HashMap<>(); // subs used when specific concerts is getting near concert cap.
 
-    /*
-    Retrieves a single concert using a given ID from the web service.
+    /**
+     * Retrieves a single concert using a given ID from the web service.
      */
     @GET
     @Path("/concerts/{id}")
-    @Produces(MediaType.APPLICATION_JSON)
     public Response getConcert(@PathParam("id") long id) {
 
         try {
@@ -64,7 +57,6 @@ public class ConcertResource {
      */
     @GET
     @Path("/concerts")
-    @Produces(MediaType.APPLICATION_JSON)
     public Response getAllConcerts() {
         List<ConcertDTO> concertDTOs = new ArrayList<>();
         try {
@@ -86,7 +78,6 @@ public class ConcertResource {
      */
     @GET
     @Path("/concerts/summaries")
-    @Produces(MediaType.APPLICATION_JSON)
     public Response getAllConcertSummaries() {
 
         List<ConcertSummaryDTO> summaryDTOs = new ArrayList<>();
@@ -110,7 +101,6 @@ public class ConcertResource {
 
     @GET
     @Path("/performers/{id}")
-    @Produces(MediaType.APPLICATION_JSON)
     public Response getPerformers(@PathParam("id") long id) {
 
         try {
@@ -133,7 +123,6 @@ public class ConcertResource {
 
     @GET
     @Path("/performers")
-    @Produces(MediaType.APPLICATION_JSON)
     public Response getAllPerformers() {
         List<PerformerDTO> performerDTOS = new ArrayList<>();
         try {
@@ -151,8 +140,6 @@ public class ConcertResource {
     }
 
     @POST
-    @Produces(MediaType.APPLICATION_JSON)
-    @Consumes(MediaType.APPLICATION_JSON)
     public Response createConcert(ConcertDTO concertDTO) {
         Concert concert = ConcertMapper.toDomainModel(concertDTO);
         EntityTransaction tx = em.getTransaction();
@@ -170,12 +157,9 @@ public class ConcertResource {
 
     @PUT
     @Path("/concerts/{id}")
-    @Produces(MediaType.APPLICATION_JSON)
-    @Consumes(MediaType.APPLICATION_JSON)
     public Response updateConcert(@PathParam("id") long id, ConcertDTO concertDTO) {
 
         EntityTransaction tx = em.getTransaction();
-        //ResponseBuilder builder;
         Concert updatedConcert = null;
         try {
             tx.begin();
@@ -221,7 +205,6 @@ public class ConcertResource {
     }
 
     @DELETE
-    @Produces(MediaType.APPLICATION_JSON)
     public Response deleteAllConcerts() {
         EntityTransaction tx = em.getTransaction();
         try {
@@ -240,8 +223,6 @@ public class ConcertResource {
 
     @POST
     @Path("/login")
-    @Produces(MediaType.APPLICATION_JSON)
-    @Consumes(MediaType.APPLICATION_JSON)
     public Response login(UserDTO userDTO) {
         EntityManager em = PersistenceManager.instance().createEntityManager();
         EntityTransaction tx = em.getTransaction();
@@ -270,6 +251,31 @@ public class ConcertResource {
         } finally {
             em.close();
         }
+        return builder.build();
+    }
+
+    @GET
+    @Path("/seats/{date}")
+    public Response getSeatsForDate(@PathParam("date") LocalDateTimeParam date, @QueryParam("status") BookingStatus status) {
+
+        try {
+            tx.begin();
+            TypedQuery<Seat> seatQuery = em
+                    .createQuery("select s from Seat s where s.date = :date", Seat.class)
+                    .setParameter("date", date.getLocalDateTime());
+            List<Seat> seats = seatQuery.getResultList();
+            tx.commit();
+            List<SeatDTO> seatDTOs = new ArrayList<>();
+            for (Seat s: seats) {
+                if (s.getBookingStatus() == status) {
+                    seatDTOs.add(SeatMapper.toDto(s));
+                }
+            }
+            builder = Response.ok(seatDTOs);
+        } finally {
+            em.close();
+        }
+
         return builder.build();
     }
 
