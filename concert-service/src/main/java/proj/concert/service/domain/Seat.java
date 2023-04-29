@@ -18,8 +18,8 @@ public class Seat {
 	@Id
 	@GeneratedValue
 	private long id;
-	private boolean isBooked;
-  @JsonSerialize(using = LocalDateTimeSerializer.class)
+	private boolean isBooked = false;
+  	@JsonSerialize(using = LocalDateTimeSerializer.class)
 	@JsonDeserialize(using = LocalDateTimeDeserializer.class)
 	private LocalDateTime date;
 	private String label;
@@ -28,13 +28,17 @@ public class Seat {
 
 	public Seat() {}
 
+	public Seat(String label, BigDecimal price) {
+		this.label = label;
+		this.price = price;
+	}
+
 	public Seat(String label, boolean isBooked, LocalDateTime date, BigDecimal price) {
 		this.label = label;
 		this.isBooked = isBooked;
 		this.date = date;
 		this.price = price;
 	}
-
 
 	public Long getId() {
 		return id;
@@ -71,6 +75,9 @@ public class Seat {
 	@JsonDeserialize(using = LocalDateTimeDeserializer.class)
 	public LocalDateTime getDate() {
 		return date;
+	}
+	public void setDate(LocalDateTime date) {
+		this.date = date;
 	}
 
 	@Override
