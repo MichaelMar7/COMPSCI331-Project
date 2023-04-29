@@ -279,4 +279,30 @@ public class ConcertResource {
         return builder.build();
     }
 
+    @POST
+    @Path("/bookings")
+    public Response makeBooking(BookingRequestDTO bookingRequestDTO) {
+
+        try {
+            BookingRequest request = BookingRequestMapper.toDomainModel(bookingRequestDTO);
+
+            for (String label: request.getSeatLabels()) {
+                tx.begin();
+                TypedQuery<Seat> seatQuery = em
+                        .createQuery("select s from Seat s where s.label = :label and s.date = :date", Seat.class)
+                        .setParameter("label", label)
+                        .setParameter("date", request.getDate());
+                Seat s = seatQuery.getSingleResult();
+                tx.commit();
+                s.setBookingStatus(BookingStatus.Booked);
+                s.setDate(request.getDate());
+
+            }
+            builder = Response.created(URI.create("/seats/" + request.getDate() + "?status=Booked"));
+        } finally {
+            em.close();
+        }
+
+        return builder.build();
+    }
 }
