@@ -269,7 +269,9 @@ public class ConcertResource {
             tx.commit();
             List<SeatDTO> seatDTOs = new ArrayList<>();
             for (Seat s: seats) {
-                if (s.getBookingStatus() == status) {
+                if ((status == BookingStatus.Booked && s.getBookingStatus() == BookingStatus.Booked) ||
+                        (status == BookingStatus.Unbooked && (s.getBookingStatus() == BookingStatus.Unbooked || s.getBookingStatus() == BookingStatus.Any)) ||
+                        status == BookingStatus.Any) {
                     seatDTOs.add(SeatMapper.toDto(s));
                 }
             }
@@ -294,10 +296,12 @@ public class ConcertResource {
                         .createQuery("select s from Seat s where s.label = :label and s.date = :date", Seat.class)
                         .setParameter("label", label)
                         .setParameter("date", request.getDate());
-                Seat s = seatQuery.getSingleResult();
+                List<Seat> seats = seatQuery.getResultList();
+                for (Seat s : seats) {
+                    s.setBookingStatus(BookingStatus.Booked);
+                    s.setDate(request.getDate());
+                }
                 tx.commit();
-                s.setBookingStatus(BookingStatus.Booked);
-                s.setDate(request.getDate());
 
             }
             builder = Response.created(URI.create("/seats/" + request.getDate() + "?status=Booked"));
