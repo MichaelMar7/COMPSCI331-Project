@@ -263,11 +263,15 @@ public class ConcertResource {
             TypedQuery<Seat> seatQuery = em
                     .createQuery("select s from Seat s where s.date = :date", Seat.class)
                     .setParameter("date", date.getLocalDateTime());
+            //TypedQuery<Seat> seatQuery = em
+            //        .createQuery("select s from Seat s", Seat.class);
             List<Seat> seats = seatQuery.getResultList();
             tx.commit();
             List<SeatDTO> seatDTOs = new ArrayList<>();
             for (Seat s: seats) {
-                if (s.getBookingStatus() == status) {
+                if ((status == BookingStatus.Booked && s.getBookingStatus() == BookingStatus.Booked) ||
+                        (status == BookingStatus.Unbooked && (s.getBookingStatus() == BookingStatus.Unbooked || s.getBookingStatus() == BookingStatus.Any)) ||
+                        status == BookingStatus.Any) {
                     seatDTOs.add(SeatMapper.toDto(s));
                 }
             }
@@ -281,7 +285,7 @@ public class ConcertResource {
 
     @POST
     @Path("/bookings")
-    public Response makeBooking(BookingRequestDTO bookingRequestDTO) {
+    public Response makeBookingRequest(BookingRequestDTO bookingRequestDTO) {
 
         try {
             BookingRequest request = BookingRequestMapper.toDomainModel(bookingRequestDTO);
@@ -292,10 +296,12 @@ public class ConcertResource {
                         .createQuery("select s from Seat s where s.label = :label and s.date = :date", Seat.class)
                         .setParameter("label", label)
                         .setParameter("date", request.getDate());
-                Seat s = seatQuery.getSingleResult();
+                List<Seat> seats = seatQuery.getResultList();
+                for (Seat s : seats) {
+                    s.setBookingStatus(BookingStatus.Booked);
+                    s.setDate(request.getDate());
+                }
                 tx.commit();
-                s.setBookingStatus(BookingStatus.Booked);
-                s.setDate(request.getDate());
 
             }
             builder = Response.created(URI.create("/seats/" + request.getDate() + "?status=Booked"));
@@ -304,5 +310,23 @@ public class ConcertResource {
         }
 
         return builder.build();
+    }
+
+    @GET
+    @Path("/subscribe/concertInfo")
+    public void subscribe(ConcertInfoSubscription concertInfoSubscription, @Suspended AsyncResponse sub) {
+        subs.put(ConcertInfoSubscriptionMapper.toDto(concertInfoSubscription), sub);
+    }
+
+    @POST
+    @Path("/subscribe/concertInfo")
+    public Response postSubscription(ConcertInfoSubscription concertInfoSubscription) {
+        synchronized (subs) {
+            for (Map.Entry<ConcertInfoSubscriptionDTO, AsyncResponse> sub : subs.entrySet()) {
+                sub.getValue().resume(concertInfoSubscription);
+            }
+            subs.clear();
+        }
+        return Response.ok().build();
     }
 }
