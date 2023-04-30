@@ -281,7 +281,7 @@ public class ConcertResource {
 
     @POST
     @Path("/bookings")
-    public Response makeBooking(BookingRequestDTO bookingRequestDTO) {
+    public Response makeBookingRequest(BookingRequestDTO bookingRequestDTO) {
 
         try {
             BookingRequest request = BookingRequestMapper.toDomainModel(bookingRequestDTO);
@@ -304,5 +304,22 @@ public class ConcertResource {
         }
 
         return builder.build();
+    }
+
+    @GET
+    @Path("/subscribe/concertInfo")
+    public void subscribe(ConcertInfoSubscriptionDTO concertInfoSubscriptionDTO, @Suspended AsyncResponse sub) {
+        subs.put(concertInfoSubscriptionDTO, sub);
+    }
+
+    @POST
+    public Response postSubscription(ConcertInfoSubscription concertInfoSubscription) {
+        synchronized (subs) {
+            for (Map.Entry<ConcertInfoSubscriptionDTO, AsyncResponse> sub : subs.entrySet()) {
+                sub.getValue().resume(concertInfoSubscription);
+            }
+            subs.clear();
+        }
+        return Response.ok().build();
     }
 }
