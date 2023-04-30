@@ -263,6 +263,8 @@ public class ConcertResource {
             TypedQuery<Seat> seatQuery = em
                     .createQuery("select s from Seat s where s.date = :date", Seat.class)
                     .setParameter("date", date.getLocalDateTime());
+            //TypedQuery<Seat> seatQuery = em
+            //        .createQuery("select s from Seat s", Seat.class);
             List<Seat> seats = seatQuery.getResultList();
             tx.commit();
             List<SeatDTO> seatDTOs = new ArrayList<>();
@@ -308,11 +310,12 @@ public class ConcertResource {
 
     @GET
     @Path("/subscribe/concertInfo")
-    public void subscribe(ConcertInfoSubscriptionDTO concertInfoSubscriptionDTO, @Suspended AsyncResponse sub) {
-        subs.put(concertInfoSubscriptionDTO, sub);
+    public void subscribe(ConcertInfoSubscription concertInfoSubscription, @Suspended AsyncResponse sub) {
+        subs.put(ConcertInfoSubscriptionMapper.toDto(concertInfoSubscription), sub);
     }
 
     @POST
+    @Path("/subscribe/concertInfo")
     public Response postSubscription(ConcertInfoSubscription concertInfoSubscription) {
         synchronized (subs) {
             for (Map.Entry<ConcertInfoSubscriptionDTO, AsyncResponse> sub : subs.entrySet()) {
