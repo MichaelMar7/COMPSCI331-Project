@@ -15,6 +15,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.ResponseBuilder;
 import java.util.*;
 import java.net.URI;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 @Path("/concert-service")
@@ -26,6 +27,7 @@ public class ConcertResource {
     EntityTransaction tx = em.getTransaction();
     ResponseBuilder builder;
     private final static Map<ConcertInfoSubscriptionDTO, AsyncResponse> subs = new HashMap<>(); // subs used when specific concerts is getting near concert cap.
+    ExecutorService threadPool = Executors.newCachedThreadPool();
 
     /**
      * Retrieves a single concert using a given ID from the web service.
@@ -101,7 +103,7 @@ public class ConcertResource {
 
     @GET
     @Path("/performers/{id}")
-    public Response getPerformers(@PathParam("id") long id) {
+    public Response getPerformer(@PathParam("id") long id) {
 
         try {
             tx.begin();
@@ -263,8 +265,6 @@ public class ConcertResource {
             TypedQuery<Seat> seatQuery = em
                     .createQuery("select s from Seat s where s.date = :date", Seat.class)
                     .setParameter("date", date.getLocalDateTime());
-            //TypedQuery<Seat> seatQuery = em
-            //        .createQuery("select s from Seat s", Seat.class);
             List<Seat> seats = seatQuery.getResultList();
             tx.commit();
             List<SeatDTO> seatDTOs = new ArrayList<>();
@@ -312,20 +312,29 @@ public class ConcertResource {
         return builder.build();
     }
 
-    @GET
-    @Path("/subscribe/concertInfo")
-    public void subscribe(ConcertInfoSubscription concertInfoSubscription, @Suspended AsyncResponse sub) {
-        subs.put(ConcertInfoSubscriptionMapper.toDto(concertInfoSubscription), sub);
-    }
+//    @GET
+//    @Path("/subscribe/concertInfo")
+//    public void subscribe(ConcertInfoSubscription concertInfoSubscription, @Suspended AsyncResponse sub) {
+//        subs.put(ConcertInfoSubscriptionMapper.toDto(concertInfoSubscription), sub);
+//    }
 
     @POST
     @Path("/subscribe/concertInfo")
-    public Response postSubscription(ConcertInfoSubscription concertInfoSubscription) {
-        synchronized (subs) {
-            for (Map.Entry<ConcertInfoSubscriptionDTO, AsyncResponse> sub : subs.entrySet()) {
-                sub.getValue().resume(concertInfoSubscription);
+    public Response subscription(ConcertInfoSubscriptionDTO concertInfoSubscription, AsyncResponse sub, @CookieParam("ClientId") Cookie cookie) {
+    //public Response postSubscription(ConcertInfoSubscription concertInfoSubscription) {
+        // authentication
+        // check concert date if exist
+        try {
+            Concert concert = em.find(Concert.class, concertInfoSubscription.getConcertId());
+            if (concert == null || !concert.getDates().contains(concertInfoSubscription.getDate())) {
+                return Response.status(Response.Status.BAD_REQUEST).build();
             }
-            subs.clear();
+        } finally {
+            em.close();
+        }
+
+        synchronized (subs) {
+            subs.put(concertInfoSubscription, sub);
         }
         return Response.ok().build();
     }
