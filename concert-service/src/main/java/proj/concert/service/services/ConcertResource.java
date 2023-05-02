@@ -297,7 +297,13 @@ public class ConcertResource {
                         .setParameter("label", label)
                         .setParameter("date", request.getDate());
                 List<Seat> seats = seatQuery.getResultList();
+                if (seats.size() == 0 || em.find(Concert.class, request.getConcertId()) == null) { // Wrong concert id and date
+                    return Response.status(Response.Status.BAD_REQUEST).build();
+                }
                 for (Seat s : seats) {
+                    if (s.getBookingStatus() == BookingStatus.Booked) { // Booking overlap and dame seats
+                        return Response.status(Response.Status.FORBIDDEN).build();
+                    }
                     s.setBookingStatus(BookingStatus.Booked);
                     s.setDate(request.getDate());
                 }
