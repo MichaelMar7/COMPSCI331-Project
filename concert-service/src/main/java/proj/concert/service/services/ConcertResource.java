@@ -295,14 +295,19 @@ public class ConcertResource {
 
     @GET
     @Path("/bookings")
-    public Response getBookingRequest(BookingRequestDTO bookingRequestDTO) {
+    public Response getBookingRequest(@CookieParam("auth") Cookie cookie) {
+        if (cookie == null) { // Unauthorized get bookings
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
         return Response.ok().build();
     }
 
     @POST
     @Path("/bookings")
-    public Response makeBookingRequest(BookingRequestDTO bookingRequestDTO) {
-
+    public Response makeBookingRequest(BookingRequestDTO bookingRequestDTO, @CookieParam("auth") Cookie cookie) {
+        if (cookie == null) { // Unauthorized booking request
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
         try {
             BookingRequest request = BookingRequestMapper.toDomainModel(bookingRequestDTO);
 
@@ -317,9 +322,9 @@ public class ConcertResource {
                     return Response.status(Response.Status.BAD_REQUEST).build();
                 }
                 for (Seat s : seats) {
-//                    if (s.getBookingStatus() == BookingStatus.Booked) { // Booking overlap and same seats
-//                        return Response.status(Response.Status.FORBIDDEN).build();
-//                    }
+                    if (s.getBookingStatus() == BookingStatus.Booked) { // Booking overlap and same seats
+                        return Response.status(Response.Status.FORBIDDEN).build();
+                    }
                     s.setBookingStatus(BookingStatus.Booked);
                     s.setDate(request.getDate());
                 }
@@ -333,12 +338,6 @@ public class ConcertResource {
 
         return builder.build();
     }
-
-//    @GET
-//    @Path("/subscribe/concertInfo")
-//    public void subscribe(ConcertInfoSubscription concertInfoSubscription, @Suspended AsyncResponse sub) {
-//        subs.put(ConcertInfoSubscriptionMapper.toDto(concertInfoSubscription), sub);
-//    }
 
     @POST
     @Path("/subscribe/concertInfo")
