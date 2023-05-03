@@ -1,10 +1,13 @@
 package proj.concert.service.services;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import proj.concert.common.dto.*;
 import proj.concert.common.types.BookingStatus;
 import proj.concert.service.domain.*;
 import proj.concert.service.jaxrs.LocalDateTimeParam;
 import proj.concert.service.mapper.*;
+import proj.concert.service.util.ConcertUtils;
 
 import javax.persistence.*;
 import javax.ws.rs.*;
@@ -22,6 +25,7 @@ import java.util.stream.Collectors;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class ConcertResource {
+    private static Logger LOGGER = LoggerFactory.getLogger(ConcertResource.class);
 
     EntityManager em = PersistenceManager.instance().createEntityManager();
     EntityTransaction tx = em.getTransaction();
@@ -342,6 +346,12 @@ public class ConcertResource {
     @POST
     @Path("/subscribe/concertInfo")
     public Response subscription(ConcertInfoSubscriptionDTO subscription, AsyncResponse sub, @CookieParam("auth") Cookie cookie) {
+//        LOGGER.debug("Booking Percentage: " + subscription.getPercentageBooked());
+//        CompletableFuture.runAsync(() -> {
+//            if (subscription.getPercentageBooked() == 100) {
+//                sub.resume(subscription);
+//            }
+//        });
         if (cookie == null) {
             return Response.status(Response.Status.UNAUTHORIZED).build();
         }
@@ -353,6 +363,12 @@ public class ConcertResource {
         } finally {
             em.close();
         }
+
+//        threadPool.submit(() -> {
+//            if (subscription.getPercentageBooked() == 100) {
+//                sub.resume(subscription);
+//            }
+//        });
 
         synchronized (subs) {
             subs.put(subscription, sub);
