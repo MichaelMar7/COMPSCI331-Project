@@ -226,10 +226,6 @@ public class ConcertResource {
     @POST
     @Path("/login")
     public Response login(UserDTO userDTO) {
-        EntityManager em = PersistenceManager.instance().createEntityManager();
-        EntityTransaction tx = em.getTransaction();
-        ResponseBuilder builder;
-
         try {
             tx.begin();
             TypedQuery<User> userQuery = em.createQuery("select u from User u where u.username = :username", User.class);
@@ -243,7 +239,11 @@ public class ConcertResource {
                 User user = users.get(0);
                 if (user.getPassword().equals(userDTO.getPassword())) {
                     UserDTO loggedInUser = UserMapper.toDto(user);
-                    NewCookie authCookie = new NewCookie("auth", user.getId().toString(), "/", "", "Authentication Cookie", NewCookie.DEFAULT_MAX_AGE, false);
+//                    NewCookie authCookie = new NewCookie(cookie);
+//                    if (cookie == null) {
+//                        authCookie = makeCookie(cookie);
+//                    }
+                    NewCookie authCookie = new NewCookie("auth", user.getId().toString());
                     builder = Response.ok(loggedInUser).cookie(authCookie);
                 } else {
                     builder = Response.status(Response.Status.UNAUTHORIZED);
@@ -254,6 +254,16 @@ public class ConcertResource {
             em.close();
         }
         return builder.build();
+    }
+
+    private NewCookie makeCookie(Cookie cookie) {
+        NewCookie newCookie = null;
+
+        if (cookie == null) {
+            newCookie = new NewCookie("clientId", UUID.randomUUID().toString());
+        }
+
+        return newCookie;
     }
 
     @GET
@@ -283,6 +293,12 @@ public class ConcertResource {
         return builder.build();
     }
 
+    @GET
+    @Path("/bookings")
+    public Response getBookingRequest(BookingRequestDTO bookingRequestDTO) {
+        return Response.ok().build();
+    }
+
     @POST
     @Path("/bookings")
     public Response makeBookingRequest(BookingRequestDTO bookingRequestDTO) {
@@ -301,9 +317,9 @@ public class ConcertResource {
                     return Response.status(Response.Status.BAD_REQUEST).build();
                 }
                 for (Seat s : seats) {
-                    if (s.getBookingStatus() == BookingStatus.Booked) { // Booking overlap and dame seats
-                        return Response.status(Response.Status.FORBIDDEN).build();
-                    }
+//                    if (s.getBookingStatus() == BookingStatus.Booked) { // Booking overlap and same seats
+//                        return Response.status(Response.Status.FORBIDDEN).build();
+//                    }
                     s.setBookingStatus(BookingStatus.Booked);
                     s.setDate(request.getDate());
                 }
@@ -326,13 +342,13 @@ public class ConcertResource {
 
     @POST
     @Path("/subscribe/concertInfo")
-    public Response subscription(ConcertInfoSubscriptionDTO concertInfoSubscription, AsyncResponse sub, @CookieParam("ClientId") Cookie cookie) {
-    //public Response postSubscription(ConcertInfoSubscription concertInfoSubscription) {
-        // authentication
-        // check concert date if exist
+    public Response subscription(ConcertInfoSubscriptionDTO subscription, AsyncResponse sub, @CookieParam("auth") Cookie cookie) {
+        if (cookie == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
         try {
-            Concert concert = em.find(Concert.class, concertInfoSubscription.getConcertId());
-            if (concert == null || !concert.getDates().contains(concertInfoSubscription.getDate())) {
+            Concert concert = em.find(Concert.class, subscription.getConcertId());
+            if (concert == null || !concert.getDates().contains(subscription.getDate())) {
                 return Response.status(Response.Status.BAD_REQUEST).build();
             }
         } finally {
@@ -340,7 +356,7 @@ public class ConcertResource {
         }
 
         synchronized (subs) {
-            subs.put(concertInfoSubscription, sub);
+            subs.put(subscription, sub);
         }
         return Response.ok().build();
     }
