@@ -321,9 +321,9 @@ public class ConcertResource {
     @POST
     @Path("/subscribe/concertInfo")
     public Response subscription(ConcertInfoSubscriptionDTO concertInfoSubscription, AsyncResponse sub, @CookieParam("ClientId") Cookie cookie) {
-    //public Response postSubscription(ConcertInfoSubscription concertInfoSubscription) {
-        // authentication
-        // check concert date if exist
+        if (cookie == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
         try {
             Concert concert = em.find(Concert.class, concertInfoSubscription.getConcertId());
             if (concert == null || !concert.getDates().contains(concertInfoSubscription.getDate())) {
