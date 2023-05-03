@@ -243,7 +243,7 @@ public class ConcertResource {
                 User user = users.get(0);
                 if (user.getPassword().equals(userDTO.getPassword())) {
                     UserDTO loggedInUser = UserMapper.toDto(user);
-                    NewCookie authCookie = new NewCookie("auth", user.getId().toString(), "/", "", "Authentication Cookie", NewCookie.DEFAULT_MAX_AGE, false);
+                    NewCookie authCookie = new NewCookie("auth", user.getId().toString());
                     builder = Response.ok(loggedInUser).cookie(authCookie);
                 } else {
                     builder = Response.status(Response.Status.UNAUTHORIZED);
@@ -320,13 +320,13 @@ public class ConcertResource {
 
     @POST
     @Path("/subscribe/concertInfo")
-    public Response subscription(ConcertInfoSubscriptionDTO concertInfoSubscription, AsyncResponse sub, @CookieParam("ClientId") Cookie cookie) {
+    public Response subscription(ConcertInfoSubscriptionDTO subscription, AsyncResponse sub, @CookieParam("auth") Cookie cookie) {
         if (cookie == null) {
             return Response.status(Response.Status.UNAUTHORIZED).build();
         }
         try {
-            Concert concert = em.find(Concert.class, concertInfoSubscription.getConcertId());
-            if (concert == null || !concert.getDates().contains(concertInfoSubscription.getDate())) {
+            Concert concert = em.find(Concert.class, subscription.getConcertId());
+            if (concert == null || !concert.getDates().contains(subscription.getDate())) {
                 return Response.status(Response.Status.BAD_REQUEST).build();
             }
         } finally {
@@ -334,7 +334,7 @@ public class ConcertResource {
         }
 
         synchronized (subs) {
-            subs.put(concertInfoSubscription, sub);
+            subs.put(subscription, sub);
         }
         return Response.ok().build();
     }
