@@ -13,6 +13,7 @@ import javax.ws.rs.core.*;
 import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.ResponseBuilder;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.net.URI;
 import java.util.concurrent.*;
@@ -252,7 +253,7 @@ public class ConcertResource {
                     user.setUuid(cookie.getValue());
                     user.addUuids(cookie.getValue());
                     em.merge(user);
-                    LOGGER.debug("UUID for user " + user.getUsername() + ": " + user.getUuid() );
+                    LOGGER.debug("login(): UUID for user " + user.getUsername() + ": " + user.getUuid() );
                 } else {
                     cookie = NewCookie.valueOf(user.getUuid());
                 }
@@ -309,28 +310,37 @@ public class ConcertResource {
         try {
             tx.begin();
             BookingRequest request = BookingRequestMapper.toDomainModel(bookingRequestDTO);
+
             if (auth == null) {
-                LOGGER.debug("No cookie >:(");
+                LOGGER.debug("makeBooking(): No cookie found >:(");
                 return Response.status(Response.Status.UNAUTHORIZED).build();
             }
-            LOGGER.debug("Found cookie! UUID string: " + auth.getValue());
+            LOGGER.debug("makeBooking(): Found cookie! UUID string: " + auth.getValue());
+
             TypedQuery<Concert> concertQuery = em
-                    .createQuery("select c from Concert c where c.id = :id ", Concert.class)
+                    .createQuery("select c from Concert c where c.id = :id", Concert.class)
                     .setParameter("id", request.getConcertId());
-            Concert c = concertQuery.getSingleResult();
+            Concert concert = concertQuery.getSingleResult();
+            List<Concert> concerts = concertQuery.getResultList();
 
-//            TypedQuery<User> userQuery = em
-//                    .createQuery("select u from User u where u.uuid = :uuid", User.class)
-//                    .setParameter("uuid", auth.getValue());
-//            User user = userQuery.getSingleResult();
-//            tx.commit();
-            TypedQuery<User> userQuery = em
-                    .createQuery("select u from User u", User.class);
-            List<User> users = userQuery.getResultList();
-
-            for (User u: users) {
-                LOGGER.debug("UUID for user " + u.getUsername() + ": " + u.getUuid() + ". List of UUIDs: " + u.getUuids());
+            concert = null;
+            for (Concert c: concerts) {
+                for (LocalDateTime d: c.getDates()) {
+                    if (d.equals(bookingRequestDTO.getDate())) {
+                        concert = c;
+                        break;
+                    }
+                }
             }
+            if (concert == null) {
+                return Response.status(Response.Status.BAD_REQUEST).build();
+            }
+
+            TypedQuery<User> userQuery = em
+                    .createQuery("select u from User u where u.uuid = :uuid", User.class)
+                    .setParameter("uuid", auth.getValue());
+            User user = userQuery.getSingleResult();
+            LOGGER.debug("makeBooking(): Found user " + user.getUsername() + " with UUID " + user.getUuid());
 
             Set<Seat> seatsToBook = new HashSet<>();
             for (String label: request.getSeatLabels()) {
@@ -354,15 +364,22 @@ public class ConcertResource {
                 }
             }
 
-            tx.commit();
             Booking booking = new Booking(
                     request.getConcertId(),
                     request.getDate(),
                     seatsToBook
             );
+            booking.setUserId(user.getId());
+            user.addBooking(booking);
+            em.persist(booking);
+            em.merge(user);
+            tx.commit();
+
+            LOGGER.debug("makeBooking(): Created booking with ID " + booking.getBookingId() + " attached to User ID" + user.getId());
             builder = Response
-                    .created(URI.create("/bookings/" + booking.getConcertId()))
+                    .created(URI.create("/bookings"))
                     .entity(BookingMapper.toDto(booking));
+            LOGGER.debug("makeBooking(): URI: " + builder.build().getLocation());
         }
         catch (NoResultException e) {
             return Response.status(Response.Status.BAD_REQUEST).build();
@@ -376,32 +393,34 @@ public class ConcertResource {
 
     @GET
     @Path("/bookings")
-    public Response getBooking(BookingDTO bookingDTO, @CookieParam("auth") Cookie auth) {
+    public Response getBookingById(@CookieParam("auth") Cookie auth) {
 
         NewCookie cookie = makeCookie(auth);
         if (auth == null) {
-            LOGGER.debug("No cookie found :(");
+            LOGGER.debug("getBookingByConcertId(): No cookie found >:(");
             builder = Response.status(Response.Status.UNAUTHORIZED);
         } else {
+            LOGGER.debug("getBookingByConcertId(): Found cookie! UUID string: " + auth.getValue());
+
             try {
                 tx.begin();
-                User u = findUserByUuid(auth.getValue());
-                if (u == null) {
-                    LOGGER.debug("No user found :(");
-                    return Response.status(Response.Status.UNAUTHORIZED).build();
-                }
-                LOGGER.debug("Found user: " + u.getUsername() + " with id " + u.getId());
+                TypedQuery<User> userQuery = em
+                        .createQuery("select u from User u where u.uuid = :uuid", User.class)
+                        .setParameter("uuid", auth.getValue());
+                User u = userQuery.getSingleResult();
+                LOGGER.debug("getBookingByConcertId(): Found user " + u.getUsername() + " with UUID " + u.getUuid());
+
                 TypedQuery<Booking> bookingQuery = em
                         .createQuery("select b from Booking b where b.userId = :userId", Booking.class)
                         .setParameter("userId", u.getId());
                 List<Booking> bookings = bookingQuery.getResultList();
-                tx.commit();
 
                 List<BookingDTO> bookingDTOs = new ArrayList<>();
                 for (Booking b: bookings) {
                     bookingDTOs.add(BookingMapper.toDto(b));
                 }
 
+                tx.commit();
                 builder = Response.ok(bookingDTOs).cookie(cookie);
             } catch (NoResultException e) {
                 return Response.status(Response.Status.BAD_REQUEST).build();
@@ -450,36 +469,10 @@ public class ConcertResource {
         NewCookie cookie = null;
         if (auth == null) {
             cookie = new NewCookie("auth", UUID.randomUUID().toString());
-            LOGGER.info("Generated cookie: " + cookie.getValue());
+            LOGGER.info("makeCookie(): Generated cookie: " + cookie.getValue());
         }
 
         return cookie;
-    }
-
-    private static User findUserByUuid(String uuid) {
-
-        EntityManager em = PersistenceManager.instance().createEntityManager();
-        EntityTransaction tx = em.getTransaction();
-        try {
-            tx.begin();
-            TypedQuery<User> userQuery = em
-                    .createQuery("select u from User u", User.class);
-            List<User> users = userQuery.getResultList();
-            tx.commit();
-
-            for (User u: users) {
-                for (String s: u.getUuids()) {
-                    if (uuid.equals(s)) {
-                        return u;
-                    }
-                }
-            }
-
-        } finally {
-            em.close();
-        }
-
-        return null;
     }
 
 }

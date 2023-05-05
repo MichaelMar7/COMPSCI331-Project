@@ -27,6 +27,8 @@ public class User {
     private String uuid = null;
     @ElementCollection(fetch = FetchType.LAZY)
     private List<String> uuids = new ArrayList<>();
+    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL, mappedBy = "userId")
+    private List<Booking> bookings = new ArrayList<>();
 
     protected User() {}
 
@@ -48,6 +50,9 @@ public class User {
     public void setUuid(String uuid) { this.uuid = uuid; }
     public List<String> getUuids() { return uuids; }
     public void addUuids(String uuid) { uuids.add(uuid); }
+    public List<Booking> getBookings() { return bookings; }
+    public void setBookings(List<Booking> bookings) { this.bookings = bookings; }
+    public void addBooking(Booking booking) { bookings.add(booking); }
 
     @Override
     public boolean equals(Object o) {
