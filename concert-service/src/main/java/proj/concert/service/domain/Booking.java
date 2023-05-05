@@ -17,6 +17,7 @@ public class Booking {
     @GeneratedValue
     private long bookingId;
     private long concertId;
+    private long userId;
     private LocalDateTime date;
     @OneToMany(fetch = FetchType.EAGER, cascade = {CascadeType.ALL, CascadeType.REMOVE})
     private Set<Seat> seats = new HashSet<>();
@@ -36,6 +37,14 @@ public class Booking {
 
     public void setConcertId(long concertId) {
         this.concertId = concertId;
+    }
+
+    public long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(long userId) {
+        this.userId = userId;
     }
 
     @JsonSerialize(contentUsing = LocalDateTimeSerializer.class)
