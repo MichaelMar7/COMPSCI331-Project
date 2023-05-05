@@ -375,9 +375,9 @@ public class ConcertResource {
             em.merge(user);
             tx.commit();
 
-            LOGGER.debug("makeBooking(): Created booking with ID " + booking.getBookingId() + " attached to User " + user.getUsername());
+            LOGGER.debug("makeBooking(): Created booking with ID " + booking.getBookingId() + " attached to User ID" + user.getId());
             builder = Response
-                    .created(URI.create("/bookings/" + booking.getConcertId()))
+                    .created(URI.create("/bookings"))
                     .entity(BookingMapper.toDto(booking));
             LOGGER.debug("makeBooking(): URI: " + builder.build().getLocation());
         }
@@ -392,8 +392,8 @@ public class ConcertResource {
     }
 
     @GET
-    @Path("/bookings/{id}")
-    public Response getBookingById(@PathParam("id") Long id,  @CookieParam("auth") Cookie auth) {
+    @Path("/bookings")
+    public Response getBookingById(@CookieParam("auth") Cookie auth) {
 
         NewCookie cookie = makeCookie(auth);
         if (auth == null) {
@@ -411,8 +411,7 @@ public class ConcertResource {
                 LOGGER.debug("getBookingByConcertId(): Found user " + u.getUsername() + " with UUID " + u.getUuid());
 
                 TypedQuery<Booking> bookingQuery = em
-                        .createQuery("select b from Booking b where b.id = :id and b.userId = :userId", Booking.class)
-                        .setParameter("id", id)
+                        .createQuery("select b from Booking b where b.userId = :userId", Booking.class)
                         .setParameter("userId", u.getId());
                 List<Booking> bookings = bookingQuery.getResultList();
 
