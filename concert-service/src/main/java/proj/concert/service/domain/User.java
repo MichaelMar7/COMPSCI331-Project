@@ -5,6 +5,8 @@ import org.apache.commons.lang3.builder.HashCodeBuilder;
 import proj.concert.common.dto.UserDTO;
 
 import javax.persistence.*;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "USERS")
@@ -22,7 +24,9 @@ public class User {
     @Column(name = "VERSION", nullable = false)
     private Long version;
     @Column(name = "UUID")
-    private String uuid;
+    private String uuid = null;
+    @ElementCollection(fetch = FetchType.LAZY)
+    private List<String> uuids = new ArrayList<>();
 
     protected User() {}
 
@@ -42,6 +46,8 @@ public class User {
     public Long getVersion() { return version; }
     public String getUuid() { return uuid; }
     public void setUuid(String uuid) { this.uuid = uuid; }
+    public List<String> getUuids() { return uuids; }
+    public void addUuids(String uuid) { uuids.add(uuid); }
 
     @Override
     public boolean equals(Object o) {
