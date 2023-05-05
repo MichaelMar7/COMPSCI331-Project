@@ -239,7 +239,6 @@ public class ConcertResource {
                     .setParameter("username", userDTO.getUsername())
                     .setParameter("password", userDTO.getPassword());
             List<User> userList = userQuery.getResultList();
-            tx.commit();
 
             if (userList.isEmpty()) {
                 builder = Response.status(Response.Status.UNAUTHORIZED);
@@ -257,6 +256,7 @@ public class ConcertResource {
                 } else {
                     cookie = NewCookie.valueOf(user.getUuid());
                 }
+                tx.commit();
 
                 builder = Response.ok(loggedInUser).cookie(cookie);
             }
