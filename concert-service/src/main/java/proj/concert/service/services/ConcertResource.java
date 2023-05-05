@@ -374,6 +374,45 @@ public class ConcertResource {
         return builder.build();
     }
 
+    @GET
+    @Path("/bookings")
+    public Response getBooking(BookingDTO bookingDTO, @CookieParam("auth") Cookie auth) {
+
+        NewCookie cookie = makeCookie(auth);
+        if (auth == null) {
+            LOGGER.debug("No cookie found :(");
+            builder = Response.status(Response.Status.UNAUTHORIZED);
+        } else {
+            try {
+                tx.begin();
+                User u = findUserByUuid(auth.getValue());
+                if (u == null) {
+                    LOGGER.debug("No user found :(");
+                    return Response.status(Response.Status.UNAUTHORIZED).build();
+                }
+                LOGGER.debug("Found user: " + u.getUsername() + " with id " + u.getId());
+                TypedQuery<Booking> bookingQuery = em
+                        .createQuery("select b from Booking b where b.userId = :userId", Booking.class)
+                        .setParameter("userId", u.getId());
+                List<Booking> bookings = bookingQuery.getResultList();
+                tx.commit();
+
+                List<BookingDTO> bookingDTOs = new ArrayList<>();
+                for (Booking b: bookings) {
+                    bookingDTOs.add(BookingMapper.toDto(b));
+                }
+
+                builder = Response.ok(bookingDTOs).cookie(cookie);
+            } catch (NoResultException e) {
+                return Response.status(Response.Status.BAD_REQUEST).build();
+            }finally {
+                em.close();
+            }
+        }
+
+        return builder.build();
+    }
+
 //    @GET
 //    @Path("/subscribe/concertInfo")
 //    public void subscribe(ConcertInfoSubscription concertInfoSubscription, @Suspended AsyncResponse sub) {
@@ -415,6 +454,32 @@ public class ConcertResource {
         }
 
         return cookie;
+    }
+
+    private static User findUserByUuid(String uuid) {
+
+        EntityManager em = PersistenceManager.instance().createEntityManager();
+        EntityTransaction tx = em.getTransaction();
+        try {
+            tx.begin();
+            TypedQuery<User> userQuery = em
+                    .createQuery("select u from User u", User.class);
+            List<User> users = userQuery.getResultList();
+            tx.commit();
+
+            for (User u: users) {
+                for (String s: u.getUuids()) {
+                    if (uuid.equals(s)) {
+                        return u;
+                    }
+                }
+            }
+
+        } finally {
+            em.close();
+        }
+
+        return null;
     }
 
 }
