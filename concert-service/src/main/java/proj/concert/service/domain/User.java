@@ -21,6 +21,8 @@ public class User {
     @Version
     @Column(name = "VERSION", nullable = false)
     private Long version;
+    @Column(name = "UUID")
+    private String uuid;
 
     protected User() {}
 
@@ -38,6 +40,8 @@ public class User {
     public String getUsername() { return username; }
     public String getPassword() { return password; }
     public Long getVersion() { return version; }
+    public String getUuid() { return uuid; }
+    public void setUuid(String uuid) { this.uuid = uuid; }
 
     @Override
     public boolean equals(Object o) {
