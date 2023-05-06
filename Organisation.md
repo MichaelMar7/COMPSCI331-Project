@@ -46,8 +46,6 @@ All discussions made as a team was primarily conducted on a private Discord serv
     - Created Organisation.md and made the initial draft 
     - Updated Organisation.md 
 
-![Alt Text](https://media.tenor.com/eG92TE7ABpQAAAAd/what-forreal.gif)
-
 ## Concurrency Error Minimization Strategy
 
 placeholder
