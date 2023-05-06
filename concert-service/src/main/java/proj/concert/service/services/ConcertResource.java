@@ -260,7 +260,7 @@ public class ConcertResource {
                 }
                 tx.commit();
 
-                LOGGER.debug("login(): UUID for user " + user.getUsername() + ": " + user.getUuid() );
+                //LOGGER.debug("login(): UUID for user " + user.getUsername() + ": " + user.getUuid() );
                 builder = Response.ok(loggedInUser).cookie(cookie);
             }
 
@@ -310,15 +310,16 @@ public class ConcertResource {
     public Response makeBooking(BookingRequestDTO bookingRequestDTO, @CookieParam("auth") Cookie auth) {
 
         if (auth == null) {
-            LOGGER.debug("makeBooking(): No cookie found >:(");
+            //LOGGER.debug("makeBooking(): No cookie found >:(");
             return Response.status(Response.Status.UNAUTHORIZED).build();
         }
-        LOGGER.debug("makeBooking(): Found cookie! UUID string: " + auth.getValue());
+        //LOGGER.debug("makeBooking(): Found cookie! UUID string: " + auth.getValue());
 
         try {
             tx.begin();
 
             BookingRequest request = BookingRequestMapper.toDomainModel(bookingRequestDTO);
+            //LOGGER.debug("" + request.getSeatLabels() + " " + request.getSeatLabels().size());
             TypedQuery<Concert> concertQuery = em
                     .createQuery("select c from Concert c where c.id = :id", Concert.class)
                     .setParameter("id", request.getConcertId());
@@ -342,7 +343,7 @@ public class ConcertResource {
                     .createQuery("select u from User u where u.uuid = :uuid", User.class)
                     .setParameter("uuid", auth.getValue());
             User user = userQuery.getSingleResult();
-            LOGGER.debug("makeBooking(): Found user " + user.getUsername() + " with UUID " + user.getUuid());
+            //LOGGER.debug("makeBooking(): Found user " + user.getUsername() + " with UUID " + user.getUuid());
 
             Set<Seat> seatsToBook = new HashSet<>();
             for (String label: request.getSeatLabels()) {
@@ -353,21 +354,19 @@ public class ConcertResource {
                 List<Seat> seats = seatQuery.getResultList();
 
                 if (seats.isEmpty()) {
-                    LOGGER.debug("No seats found for label " + label + " and date " + request.getDate());
+                    //LOGGER.debug("No seats found for label " + label + " and date " + request.getDate());
                     return Response.status(Response.Status.NOT_FOUND).build();
                 }
 
                 for (Seat s : seats) {
-                    if (s.getLabel().equals(label)) {
-                        if (!s.isBooked()) {
-                            s.setBooked(true);
-                            s.setBookingStatus(BookingStatus.Booked);
-                            seatsToBook.add(s);
-                            em.merge(s);
-                        } else {
-                            LOGGER.debug("Seat " + label + " is already booked.");
-                            return Response.status(Response.Status.FORBIDDEN).build();
-                        }
+                    if (s.getLabel().equals(label) && !s.isBooked()) {
+                        s.setBooked(true);
+                        s.setBookingStatus(BookingStatus.Booked);
+                        seatsToBook.add(s);
+                        em.merge(s);
+                    } else {
+                        //LOGGER.debug("Seat " + label + " is already booked.");
+                        return Response.status(Response.Status.FORBIDDEN).build();
                     }
                 }
             }
@@ -381,13 +380,21 @@ public class ConcertResource {
             user.addBooking(booking);
             em.persist(booking);
             em.merge(user);
+
+            List<Seat> remainingSeats = em.createQuery("select s from Seat s where s.date = :date and s.isBooked = :isBooked", Seat.class)
+                    .setParameter("date", booking.getDate())
+                    .setParameter("isBooked", false)
+                    .getResultList();
+            if (subs.size() != 0) {
+                notification(new ConcertRemainingSeats(booking.getConcertId(), remainingSeats.size()));
+            }
             tx.commit();
 
-            LOGGER.debug("makeBooking(): Created booking with ID " + booking.getBookingId() + " for concert ID " + booking.getConcertId() + " attached to User ID " + booking.getUserId());
+            //LOGGER.debug("makeBooking(): Created booking with ID " + booking.getBookingId() + " for concert ID " + booking.getConcertId() + " attached to User ID " + booking.getUserId());
             builder = Response
                     .created(URI.create("/concert-service/bookings/" + booking.getBookingId()))
                     .entity(BookingMapper.toDto(booking));
-            LOGGER.debug("makeBooking(): URI: " + builder.build().getLocation());
+            //LOGGER.debug("makeBooking(): URI: " + builder.build().getLocation());
         }
         catch (NoResultException e) {
             return Response.status(Response.Status.BAD_REQUEST).build();
@@ -405,12 +412,12 @@ public class ConcertResource {
     public Response getAllBookingsForUser(@CookieParam("auth") Cookie auth) {
 
         // TODO for testGetOwnBookingById, it cant seem to find logged in user through auth as auth = null. other test cases passed fine
-        LOGGER.debug("getAllBookingsForUser(): Cookie: " + auth);
+        //LOGGER.debug("getAllBookingsForUser(): Cookie: " + auth);
         if (auth == null) {
-            LOGGER.debug("getAllBookingsForUser(): No cookie found >:(");
+            //LOGGER.debug("getAllBookingsForUser(): No cookie found >:(");
             builder = Response.status(Response.Status.UNAUTHORIZED);
         } else {
-            LOGGER.debug("getAllBookingsForUser(): Found cookie! UUID string: " + auth.getValue());
+            //LOGGER.debug("getAllBookingsForUser(): Found cookie! UUID string: " + auth.getValue());
 
             try {
                 tx.begin();
@@ -418,7 +425,7 @@ public class ConcertResource {
                         .createQuery("select u from User u where u.uuid = :uuid", User.class)
                         .setParameter("uuid", auth.getValue());
                 User u = userQuery.getSingleResult();
-                LOGGER.debug("getAllBookingsForUser(): Found user " + u.getUsername() + " with UUID " + u.getUuid());
+                //LOGGER.debug("getAllBookingsForUser(): Found user " + u.getUsername() + " with UUID " + u.getUuid());
 
                 TypedQuery<Booking> bookingQuery = em
                         .createQuery("select b from Booking b where b.userId = :userId", Booking.class)
@@ -447,10 +454,10 @@ public class ConcertResource {
     public Response getSingleBookingForUser(@PathParam("id") Long id, @CookieParam("auth") Cookie auth) {
 
         if (auth == null) {
-            LOGGER.debug("getSingleBookingForUser(): No cookie found >:(");
+            //LOGGER.debug("getSingleBookingForUser(): No cookie found >:(");
             return Response.status(Response.Status.UNAUTHORIZED).build();
         } else {
-            LOGGER.debug("getSingleBookingForUser(): Found cookie! UUID string: " + auth.getValue());
+            //LOGGER.debug("getSingleBookingForUser(): Found cookie! UUID string: " + auth.getValue());
 
             try {
                 tx.begin();
@@ -477,11 +484,11 @@ public class ConcertResource {
     }
 
     @GET
-    public void notification(ConcertInfoNotificationDTO notification) {
+    public void notification(ConcertRemainingSeats notification) {
         synchronized (subs) {
             for (Map.Entry<ConcertInfoSubscriptionDTO, AsyncResponse> sub : subs.entrySet()) {
-                if (/*sub.getKey().getConcertId() == notfication.getConcertId &&*/ sub.getKey().getPercentageBooked() < 60) {
-                    sub.getValue().resume(sub.getKey().getPercentageBooked());
+                if (sub.getKey().getConcertId() == notification.getConcertId() && notification.getRemainingSeats() < 60) {
+                    sub.getValue().resume(notification.getRemainingSeats());
                     subs.put(sub.getKey(), sub.getValue());
                 }
             }
@@ -517,7 +524,7 @@ public class ConcertResource {
         NewCookie cookie = null;
         if (auth == null) {
             cookie = new NewCookie("auth", UUID.randomUUID().toString());
-            LOGGER.info("makeCookie(): Generated cookie: " + cookie.getValue());
+            //LOGGER.info("makeCookie(): Generated cookie: " + cookie.getValue());
         }
 
         return cookie;
