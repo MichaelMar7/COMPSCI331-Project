@@ -231,7 +231,7 @@ public class ConcertResource {
 
     @POST
     @Path("/login")
-    public Response login(UserDTO userDTO) {
+    public Response login(UserDTO userDTO, @CookieParam("auth") Cookie auth) {
 
         try {
             tx.begin();
@@ -250,15 +250,17 @@ public class ConcertResource {
 
                 if (user.getUuid() == null) {
                     cookie = makeCookie(null);
+                    auth = cookie.toCookie();
                     user.setUuid(cookie.getValue());
                     user.addUuids(cookie.getValue());
                     em.merge(user);
-                    LOGGER.debug("login(): UUID for user " + user.getUsername() + ": " + user.getUuid() );
                 } else {
                     cookie = NewCookie.valueOf(user.getUuid());
+                    auth = cookie.toCookie();
                 }
                 tx.commit();
 
+                LOGGER.debug("login(): UUID for user " + user.getUsername() + ": " + user.getUuid() );
                 builder = Response.ok(loggedInUser).cookie(cookie);
             }
 
@@ -307,16 +309,16 @@ public class ConcertResource {
     @Path("/bookings")
     public Response makeBooking(BookingRequestDTO bookingRequestDTO, @CookieParam("auth") Cookie auth) {
 
+        if (auth == null) {
+            LOGGER.debug("makeBooking(): No cookie found >:(");
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        LOGGER.debug("makeBooking(): Found cookie! UUID string: " + auth.getValue());
+
         try {
             tx.begin();
+
             BookingRequest request = BookingRequestMapper.toDomainModel(bookingRequestDTO);
-
-            if (auth == null) {
-                LOGGER.debug("makeBooking(): No cookie found >:(");
-                return Response.status(Response.Status.UNAUTHORIZED).build();
-            }
-            LOGGER.debug("makeBooking(): Found cookie! UUID string: " + auth.getValue());
-
             TypedQuery<Concert> concertQuery = em
                     .createQuery("select c from Concert c where c.id = :id", Concert.class)
                     .setParameter("id", request.getConcertId());
@@ -375,9 +377,9 @@ public class ConcertResource {
             em.merge(user);
             tx.commit();
 
-            LOGGER.debug("makeBooking(): Created booking with ID " + booking.getBookingId() + " for concert ID " + booking.getConcertId() + " attached to User ID" + booking.getUserId());
+            LOGGER.debug("makeBooking(): Created booking with ID " + booking.getBookingId() + " for concert ID " + booking.getConcertId() + " attached to User ID " + booking.getUserId());
             builder = Response
-                    .created(URI.create("/bookings" + booking.getConcertId()))
+                    .created(URI.create("/concert-service/bookings/" + booking.getConcertId()))
                     .entity(BookingMapper.toDto(booking));
             LOGGER.debug("makeBooking(): URI: " + builder.build().getLocation());
         }
@@ -395,12 +397,13 @@ public class ConcertResource {
     @Path("/bookings")
     public Response getAllBookingsForUser(@CookieParam("auth") Cookie auth) {
 
-        NewCookie cookie = makeCookie(auth);
+        // TODO for testGetOwnBookingById, it cant seem to find logged in user through auth as auth = null. other test cases passed fine
+        LOGGER.debug("getAllBookingsForUser(): Cookie: " + auth);
         if (auth == null) {
-            LOGGER.debug("getBookingByConcertId(): No cookie found >:(");
+            LOGGER.debug("getAllBookingsForUser(): No cookie found >:(");
             builder = Response.status(Response.Status.UNAUTHORIZED);
         } else {
-            LOGGER.debug("getBookingByConcertId(): Found cookie! UUID string: " + auth.getValue());
+            LOGGER.debug("getAllBookingsForUser(): Found cookie! UUID string: " + auth.getValue());
 
             try {
                 tx.begin();
@@ -408,9 +411,8 @@ public class ConcertResource {
                         .createQuery("select u from User u where u.uuid = :uuid", User.class)
                         .setParameter("uuid", auth.getValue());
                 User u = userQuery.getSingleResult();
-                LOGGER.debug("getBookingByConcertId(): Found user " + u.getUsername() + " with UUID " + u.getUuid());
+                LOGGER.debug("getAllBookingsForUser(): Found user " + u.getUsername() + " with UUID " + u.getUuid());
 
-                // TODO this should be right? needs double checking
                 TypedQuery<Booking> bookingQuery = em
                         .createQuery("select b from Booking b where b.userId = :userId", Booking.class)
                         .setParameter("userId", u.getId());
@@ -422,7 +424,7 @@ public class ConcertResource {
                 }
 
                 tx.commit();
-                builder = Response.ok(bookingDTOs).cookie(cookie);
+                builder = Response.ok(bookingDTOs);
             } catch (NoResultException e) {
                 return Response.status(Response.Status.BAD_REQUEST).build();
             }finally {
@@ -440,10 +442,10 @@ public class ConcertResource {
         // TODO id is the concert_id, need to grab all bookings that has user id and concert id
         NewCookie cookie = makeCookie(auth);
         if (auth == null) {
-            LOGGER.debug("getBookingByConcertId(): No cookie found >:(");
+            LOGGER.debug("getSingleBookingForUser(): No cookie found >:(");
             builder = Response.status(Response.Status.UNAUTHORIZED);
         } else {
-            LOGGER.debug("getBookingByConcertId(): Found cookie! UUID string: " + auth.getValue());
+            LOGGER.debug("getSingleBookingForUser(): Found cookie! UUID string: " + auth.getValue());
 
             try {
                 // TODO implement this please
@@ -453,7 +455,7 @@ public class ConcertResource {
 
         }
 
-        builder = Response.status(Response.Status.NOT_FOUND);
+        builder = Response.status(Response.Status.UNAUTHORIZED);
         return builder.build();
     }
 
