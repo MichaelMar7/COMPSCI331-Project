@@ -466,27 +466,38 @@ public class ConcertResource {
 //        subs.put(ConcertInfoSubscriptionMapper.toDto(concertInfoSubscription), sub);
 //    }
 
+    @GET
+    public void notification(ConcertInfoNotificationDTO notification) {
+        synchronized (subs) {
+            for (Map.Entry<ConcertInfoSubscriptionDTO, AsyncResponse> sub : subs.entrySet()) {
+                if (/*sub.getKey().getConcertId() == notfication.getConcertId &&*/ sub.getKey().getPercentageBooked() < 60) {
+                    sub.getValue().resume(sub.getKey().getPercentageBooked());
+                    subs.put(sub.getKey(), sub.getValue());
+                }
+            }
+        }
+    }
+
     @POST
     @Path("/subscribe/concertInfo")
-    public Response subscription(ConcertInfoSubscriptionDTO concertInfoSubscription, AsyncResponse sub, @CookieParam("ClientId") Cookie cookie) {
-    //public Response postSubscription(ConcertInfoSubscription concertInfoSubscription) {
-        // authentication
-        // check concert date if exist
+    public void subscription(ConcertInfoSubscriptionDTO subscription, @Suspended AsyncResponse sub, @CookieParam("auth") Cookie cookie) {
+        if (cookie == null) {
+            sub.resume(Response.status(Response.Status.UNAUTHORIZED).build());
+            return;
+        }
         try {
             tx.begin();
-            Concert concert = em.find(Concert.class, concertInfoSubscription.getConcertId());
-            if (concert == null || !concert.getDates().contains(concertInfoSubscription.getDate())) {
-                return Response.status(Response.Status.BAD_REQUEST).build();
+            Concert concert = em.find(Concert.class, subscription.getConcertId());
+            tx.commit();
+            if (concert == null || !concert.getDates().contains(subscription.getDate())) {
+                sub.resume(Response.status(Response.Status.BAD_REQUEST).build());
+                return;
             }
             tx.commit();
         } finally {
             em.close();
         }
-
-        synchronized (subs) {
-            subs.put(concertInfoSubscription, sub);
-        }
-        return Response.ok().build();
+        subs.put(new ConcertInfoSubscriptionDTO(subscription.getConcertId(), subscription.getDate(), subscription.getPercentageBooked()), sub);
     }
 
     /*
