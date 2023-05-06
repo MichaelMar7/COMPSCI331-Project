@@ -375,9 +375,9 @@ public class ConcertResource {
             em.merge(user);
             tx.commit();
 
-            LOGGER.debug("makeBooking(): Created booking with ID " + booking.getBookingId() + " attached to User ID" + user.getId());
+            LOGGER.debug("makeBooking(): Created booking with ID " + booking.getBookingId() + " for concert ID " + booking.getConcertId() + " attached to User ID" + booking.getUserId());
             builder = Response
-                    .created(URI.create("/bookings"))
+                    .created(URI.create("/bookings" + booking.getConcertId()))
                     .entity(BookingMapper.toDto(booking));
             LOGGER.debug("makeBooking(): URI: " + builder.build().getLocation());
         }
@@ -393,7 +393,7 @@ public class ConcertResource {
 
     @GET
     @Path("/bookings")
-    public Response getBookingById(@CookieParam("auth") Cookie auth) {
+    public Response getAllBookingsForUser(@CookieParam("auth") Cookie auth) {
 
         NewCookie cookie = makeCookie(auth);
         if (auth == null) {
@@ -410,6 +410,7 @@ public class ConcertResource {
                 User u = userQuery.getSingleResult();
                 LOGGER.debug("getBookingByConcertId(): Found user " + u.getUsername() + " with UUID " + u.getUuid());
 
+                // TODO this should be right? needs double checking
                 TypedQuery<Booking> bookingQuery = em
                         .createQuery("select b from Booking b where b.userId = :userId", Booking.class)
                         .setParameter("userId", u.getId());
@@ -431,6 +432,31 @@ public class ConcertResource {
 
         return builder.build();
     }
+
+    @GET
+    @Path("/bookings/{id}")
+    public Response getSingleBookingForUser(@PathParam("id") Long id, @CookieParam("auth") Cookie auth) {
+
+        // TODO id is the concert_id, need to grab all bookings that has user id and concert id
+        NewCookie cookie = makeCookie(auth);
+        if (auth == null) {
+            LOGGER.debug("getBookingByConcertId(): No cookie found >:(");
+            builder = Response.status(Response.Status.UNAUTHORIZED);
+        } else {
+            LOGGER.debug("getBookingByConcertId(): Found cookie! UUID string: " + auth.getValue());
+
+            try {
+                // TODO implement this please
+            } finally {
+                em.close();
+            }
+
+        }
+
+        builder = Response.status(Response.Status.NOT_FOUND);
+        return builder.build();
+    }
+
 
 //    @GET
 //    @Path("/subscribe/concertInfo")
