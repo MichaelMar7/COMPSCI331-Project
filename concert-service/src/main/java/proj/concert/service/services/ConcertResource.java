@@ -476,14 +476,6 @@ public class ConcertResource {
         }
     }
 
-
-
-//    @GET
-//    @Path("/subscribe/concertInfo")
-//    public void subscribe(ConcertInfoSubscription concertInfoSubscription, @Suspended AsyncResponse sub) {
-//        subs.put(ConcertInfoSubscriptionMapper.toDto(concertInfoSubscription), sub);
-//    }
-
     @GET
     public void notification(ConcertInfoNotificationDTO notification) {
         synchronized (subs) {
@@ -511,7 +503,6 @@ public class ConcertResource {
                 sub.resume(Response.status(Response.Status.BAD_REQUEST).build());
                 return;
             }
-            tx.commit();
         } finally {
             em.close();
         }
