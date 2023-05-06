@@ -343,36 +343,70 @@ public class ConcertResource {
         return builder.build();
     }
 
+    // TODO
+//    @GET
+//    public void notification(ConcertInfoNotificationDTO notification) {
+//        synchronized (subs) {
+//            for (Map.Entry<ConcertInfoSubscriptionDTO, AsyncResponse> sub : subs.entrySet()) {
+//                if (/*sub.getKey().getConcertId() == notfication.getConcertId &&*/ sub.getKey().getPercentageBooked() < 60) {
+//                    sub.getValue().resume(sub.getKey().getPercentageBooked());
+//                    subs.put(sub.getKey(), sub.getValue());
+//                }
+//            }
+//        }
+//    }
+
     @POST
     @Path("/subscribe/concertInfo")
-    public Response subscription(ConcertInfoSubscriptionDTO subscription, AsyncResponse sub, @CookieParam("auth") Cookie cookie) {
-//        LOGGER.debug("Booking Percentage: " + subscription.getPercentageBooked());
-//        CompletableFuture.runAsync(() -> {
-//            if (subscription.getPercentageBooked() == 100) {
-//                sub.resume(subscription);
-//            }
-//        });
+    public void subscription(ConcertInfoSubscriptionDTO subscription, @Suspended AsyncResponse sub, @CookieParam("auth") Cookie cookie) {
         if (cookie == null) {
-            return Response.status(Response.Status.UNAUTHORIZED).build();
+            sub.resume(Response.status(Response.Status.UNAUTHORIZED).build());
+            return;
         }
         try {
+            tx.begin();
             Concert concert = em.find(Concert.class, subscription.getConcertId());
+            tx.commit();
             if (concert == null || !concert.getDates().contains(subscription.getDate())) {
-                return Response.status(Response.Status.BAD_REQUEST).build();
+                sub.resume(Response.status(Response.Status.BAD_REQUEST).build());
+                return;
             }
         } finally {
             em.close();
         }
-
-//        threadPool.submit(() -> {
-//            if (subscription.getPercentageBooked() == 100) {
-//                sub.resume(subscription);
-//            }
-//        });
-
-        synchronized (subs) {
-            subs.put(subscription, sub);
-        }
-        return Response.ok().build();
+        subs.put(new ConcertInfoSubscriptionDTO(subscription.getConcertId(), subscription.getDate(), subscription.getPercentageBooked()), sub);
     }
+
+//    @POST
+//    @Path("/subscribe/concertInfo")
+//    public Response subscription(ConcertInfoSubscriptionDTO subscription, AsyncResponse sub, @CookieParam("auth") Cookie cookie) {
+////        LOGGER.debug("Booking Percentage: " + subscription.getPercentageBooked());
+////        CompletableFuture.runAsync(() -> {
+////            if (subscription.getPercentageBooked() == 100) {
+////                sub.resume(subscription);
+////            }
+////        });
+//        if (cookie == null) {
+//            return Response.status(Response.Status.UNAUTHORIZED).build();
+//        }
+//        try {
+//            Concert concert = em.find(Concert.class, subscription.getConcertId());
+//            if (concert == null || !concert.getDates().contains(subscription.getDate())) {
+//                return Response.status(Response.Status.BAD_REQUEST).build();
+//            }
+//        } finally {
+//            em.close();
+//        }
+//
+////        threadPool.submit(() -> {
+////            if (subscription.getPercentageBooked() == 100) {
+////                sub.resume(subscription);
+////            }
+////        });
+//
+//        synchronized (subs) {
+//            subs.put(subscription, sub);
+//        }
+//        return Response.ok().build();
+//    }
 }
