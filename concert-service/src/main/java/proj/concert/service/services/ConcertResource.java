@@ -13,10 +13,14 @@ import javax.ws.rs.core.*;
 import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.ResponseBuilder;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.net.URI;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Path("/concert-service")
 @Produces(MediaType.APPLICATION_JSON)
@@ -26,6 +30,8 @@ public class ConcertResource {
     EntityManager em = PersistenceManager.instance().createEntityManager();
     EntityTransaction tx = em.getTransaction();
     ResponseBuilder builder;
+
+    private static Logger LOGGER = LoggerFactory.getLogger(ConcertResource.class);
     private final static Map<ConcertInfoSubscriptionDTO, AsyncResponse> subs = new HashMap<>(); // subs used when specific concerts is getting near concert cap.
     ExecutorService threadPool = Executors.newCachedThreadPool();
 
@@ -225,40 +231,52 @@ public class ConcertResource {
 
     @POST
     @Path("/login")
-    public Response login(UserDTO userDTO) {
-        EntityManager em = PersistenceManager.instance().createEntityManager();
-        EntityTransaction tx = em.getTransaction();
-        ResponseBuilder builder;
+    public Response login(UserDTO userDTO, @CookieParam("auth") Cookie auth) {
 
         try {
             tx.begin();
-            TypedQuery<User> userQuery = em.createQuery("select u from User u where u.username = :username", User.class);
-            userQuery.setParameter("username", userDTO.getUsername());
-            List<User> users = userQuery.getResultList();
-            tx.commit();
+            TypedQuery<User> userQuery = em
+                    .createQuery("select u from User u where u.username = :username and u.password = :password", User.class)
+                    .setParameter("username", userDTO.getUsername())
+                    .setParameter("password", userDTO.getPassword());
+            List<User> userList = userQuery.getResultList();
 
-            if (users.isEmpty()) {
+            if (userList.isEmpty()) {
                 builder = Response.status(Response.Status.UNAUTHORIZED);
             } else {
-                User user = users.get(0);
-                if (user.getPassword().equals(userDTO.getPassword())) {
-                    UserDTO loggedInUser = UserMapper.toDto(user);
-                    NewCookie authCookie = new NewCookie("auth", user.getId().toString());
-                    builder = Response.ok(loggedInUser).cookie(authCookie);
+                User user = userList.get(0);
+                UserDTO loggedInUser = UserMapper.toDto(user);
+                NewCookie cookie;
+
+                if (user.getUuid() == null) {
+                    cookie = makeCookie(null);
+                    auth = cookie.toCookie();
+                    user.setUuid(cookie.getValue());
+                    user.addUuids(cookie.getValue());
+                    em.merge(user);
                 } else {
-                    builder = Response.status(Response.Status.UNAUTHORIZED);
+                    cookie = NewCookie.valueOf(user.getUuid());
+                    auth = cookie.toCookie();
                 }
+                tx.commit();
+
+                LOGGER.debug("login(): UUID for user " + user.getUsername() + ": " + user.getUuid() );
+                builder = Response.ok(loggedInUser).cookie(cookie);
             }
 
-        } finally {
+        } catch (NoResultException e) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        finally {
             em.close();
         }
+
         return builder.build();
     }
 
     @GET
     @Path("/seats/{date}")
-    public Response getSeatsForDate(@PathParam("date") LocalDateTimeParam date, @QueryParam("status") BookingStatus status) {
+    public Response getSeatsForDate(@PathParam("date") LocalDateTimeParam date, @QueryParam("status") BookingStatus status, @CookieParam("auth") Cookie auth) {
 
         try {
             tx.begin();
@@ -268,13 +286,17 @@ public class ConcertResource {
             List<Seat> seats = seatQuery.getResultList();
             tx.commit();
             List<SeatDTO> seatDTOs = new ArrayList<>();
+
             for (Seat s: seats) {
-                if ((status == BookingStatus.Booked && s.getBookingStatus() == BookingStatus.Booked) ||
-                        (status == BookingStatus.Unbooked && (s.getBookingStatus() == BookingStatus.Unbooked || s.getBookingStatus() == BookingStatus.Any)) ||
-                        status == BookingStatus.Any) {
+                if (status == BookingStatus.Booked && s.isBooked()) {
+                    seatDTOs.add(SeatMapper.toDto(s));
+                } else if (status == BookingStatus.Unbooked && !s.isBooked()) {
+                    seatDTOs.add(SeatMapper.toDto(s));
+                } else if (status == BookingStatus.Any) {
                     seatDTOs.add(SeatMapper.toDto(s));
                 }
             }
+
             builder = Response.ok(seatDTOs);
         } finally {
             em.close();
@@ -285,32 +307,158 @@ public class ConcertResource {
 
     @POST
     @Path("/bookings")
-    public Response makeBookingRequest(BookingRequestDTO bookingRequestDTO) {
+    public Response makeBooking(BookingRequestDTO bookingRequestDTO, @CookieParam("auth") Cookie auth) {
+
+        if (auth == null) {
+            LOGGER.debug("makeBooking(): No cookie found >:(");
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        LOGGER.debug("makeBooking(): Found cookie! UUID string: " + auth.getValue());
 
         try {
-            BookingRequest request = BookingRequestMapper.toDomainModel(bookingRequestDTO);
+            tx.begin();
 
+            BookingRequest request = BookingRequestMapper.toDomainModel(bookingRequestDTO);
+            TypedQuery<Concert> concertQuery = em
+                    .createQuery("select c from Concert c where c.id = :id", Concert.class)
+                    .setParameter("id", request.getConcertId());
+            Concert concert = concertQuery.getSingleResult();
+            List<Concert> concerts = concertQuery.getResultList();
+
+            concert = null;
+            for (Concert c: concerts) {
+                for (LocalDateTime d: c.getDates()) {
+                    if (d.equals(bookingRequestDTO.getDate())) {
+                        concert = c;
+                        break;
+                    }
+                }
+            }
+            if (concert == null) {
+                return Response.status(Response.Status.BAD_REQUEST).build();
+            }
+
+            TypedQuery<User> userQuery = em
+                    .createQuery("select u from User u where u.uuid = :uuid", User.class)
+                    .setParameter("uuid", auth.getValue());
+            User user = userQuery.getSingleResult();
+            LOGGER.debug("makeBooking(): Found user " + user.getUsername() + " with UUID " + user.getUuid());
+
+            Set<Seat> seatsToBook = new HashSet<>();
             for (String label: request.getSeatLabels()) {
-                tx.begin();
                 TypedQuery<Seat> seatQuery = em
                         .createQuery("select s from Seat s where s.label = :label and s.date = :date", Seat.class)
                         .setParameter("label", label)
                         .setParameter("date", request.getDate());
                 List<Seat> seats = seatQuery.getResultList();
-                for (Seat s : seats) {
-                    s.setBookingStatus(BookingStatus.Booked);
-                    s.setDate(request.getDate());
-                }
-                tx.commit();
 
+                for (Seat s : seats) {
+                    if (s.getLabel().equals(label)) {
+                        if (!s.isBooked()) {
+                            s.setBooked(true);
+                            s.setBookingStatus(BookingStatus.Booked);
+                            seatsToBook.add(s);
+                            em.merge(s);
+                        } else {
+                            return Response.status(Response.Status.FORBIDDEN).build();
+                        }
+                    }
+                }
             }
-            builder = Response.created(URI.create("/seats/" + request.getDate() + "?status=Booked"));
-        } finally {
+
+            Booking booking = new Booking(
+                    request.getConcertId(),
+                    request.getDate(),
+                    seatsToBook
+            );
+            booking.setUserId(user.getId());
+            user.addBooking(booking);
+            em.persist(booking);
+            em.merge(user);
+            tx.commit();
+
+            LOGGER.debug("makeBooking(): Created booking with ID " + booking.getBookingId() + " for concert ID " + booking.getConcertId() + " attached to User ID " + booking.getUserId());
+            builder = Response
+                    .created(URI.create("/concert-service/bookings/" + booking.getConcertId()))
+                    .entity(BookingMapper.toDto(booking));
+            LOGGER.debug("makeBooking(): URI: " + builder.build().getLocation());
+        }
+        catch (NoResultException e) {
+            return Response.status(Response.Status.BAD_REQUEST).build();
+        }
+        finally {
             em.close();
         }
 
         return builder.build();
     }
+
+    @GET
+    @Path("/bookings")
+    public Response getAllBookingsForUser(@CookieParam("auth") Cookie auth) {
+
+        // TODO for testGetOwnBookingById, it cant seem to find logged in user through auth as auth = null. other test cases passed fine
+        LOGGER.debug("getAllBookingsForUser(): Cookie: " + auth);
+        if (auth == null) {
+            LOGGER.debug("getAllBookingsForUser(): No cookie found >:(");
+            builder = Response.status(Response.Status.UNAUTHORIZED);
+        } else {
+            LOGGER.debug("getAllBookingsForUser(): Found cookie! UUID string: " + auth.getValue());
+
+            try {
+                tx.begin();
+                TypedQuery<User> userQuery = em
+                        .createQuery("select u from User u where u.uuid = :uuid", User.class)
+                        .setParameter("uuid", auth.getValue());
+                User u = userQuery.getSingleResult();
+                LOGGER.debug("getAllBookingsForUser(): Found user " + u.getUsername() + " with UUID " + u.getUuid());
+
+                TypedQuery<Booking> bookingQuery = em
+                        .createQuery("select b from Booking b where b.userId = :userId", Booking.class)
+                        .setParameter("userId", u.getId());
+                List<Booking> bookings = bookingQuery.getResultList();
+
+                List<BookingDTO> bookingDTOs = new ArrayList<>();
+                for (Booking b: bookings) {
+                    bookingDTOs.add(BookingMapper.toDto(b));
+                }
+
+                tx.commit();
+                builder = Response.ok(bookingDTOs);
+            } catch (NoResultException e) {
+                return Response.status(Response.Status.BAD_REQUEST).build();
+            }finally {
+                em.close();
+            }
+        }
+
+        return builder.build();
+    }
+
+    @GET
+    @Path("/bookings/{id}")
+    public Response getSingleBookingForUser(@PathParam("id") Long id, @CookieParam("auth") Cookie auth) {
+
+        // TODO id is the concert_id, need to grab all bookings that has user id and concert id
+        NewCookie cookie = makeCookie(auth);
+        if (auth == null) {
+            LOGGER.debug("getSingleBookingForUser(): No cookie found >:(");
+            builder = Response.status(Response.Status.UNAUTHORIZED);
+        } else {
+            LOGGER.debug("getSingleBookingForUser(): Found cookie! UUID string: " + auth.getValue());
+
+            try {
+                // TODO implement this please
+            } finally {
+                em.close();
+            }
+
+        }
+
+        builder = Response.status(Response.Status.UNAUTHORIZED);
+        return builder.build();
+    }
+
 
 //    @GET
 //    @Path("/subscribe/concertInfo")
@@ -345,9 +493,25 @@ public class ConcertResource {
                 sub.resume(Response.status(Response.Status.BAD_REQUEST).build());
                 return;
             }
+            tx.commit();
         } finally {
             em.close();
         }
         subs.put(new ConcertInfoSubscriptionDTO(subscription.getConcertId(), subscription.getDate(), subscription.getPercentageBooked()), sub);
     }
+
+    /*
+    Helper function that creates a NewCookie instance whenever a user successfully logs in.
+     */
+    private static NewCookie makeCookie(Cookie auth) {
+
+        NewCookie cookie = null;
+        if (auth == null) {
+            cookie = new NewCookie("auth", UUID.randomUUID().toString());
+            LOGGER.info("makeCookie(): Generated cookie: " + cookie.getValue());
+        }
+
+        return cookie;
+    }
+
 }

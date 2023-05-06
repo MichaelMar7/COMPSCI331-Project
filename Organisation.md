@@ -1,6 +1,24 @@
 # Organisation
 
-## Authors
+## Domain Model Structure
+
+Our domain model consists of several classes that each represent an object in the Concert Booking Service. These classes are:
+- `Booking` - represents a `Booking` successfully made by a `User` client logged into the Web Service for a specific `Concert`, after requesting for one. 
+- `BookingRequest` - represents a request made by a `User` client logged into the Web Service to book one or more `Seat`s at a `Concert`
+- `Concert` - represents a `Concert` that is available to be booked on the Web Service. 
+- `ConcertInfoNotification` - represents a `Notification` a `User` may receive about the number of `Seat`s remain at a `concert` (should they choose to subscribe) 
+- `ConcertInfoSubscription` - represents a `Subscription` made by a `User` to receive `Notification`s relating to any changes made to a particular `Concert`
+- `ConcertSummary` - represents a brief `Summary` of a given `Concert`
+- `Performer` - represents a `Performer` that will be performing at one or more `Concert`s
+- `Seat` - represents a `Seat` at a `Concert` that `User`s can enquire and book
+- `User` - represents a logged `User` in the Web Service 
+
+Each class has their own respective Data Transfer Object (DTO) class that is used to transfer lightweight and minimal but crucial data between the client and server via Jackson JSON marshalling and unmarshalling. Furthermore, to ensure seamless conversion between a DTO object and a Domain object without losing any important information, each class also has their own Mapper class to ensure this is the case while the Web Service is being used.
+Finally, to ensure the persistence of our data in the Web Service, we have annotated every domain class using JPA Hibernate. This also allows us to represent certain relationships two classes may have, such as one-to-many or many-to-many.
+
+## Changelog (WIP - PLEASE UPDATE)
+
+All discussions made as a team was primarily conducted on a private Discord server. Please refer to the Teams Discussion post under Issues on GitHub to view the chat logs.
 
 - Michael Mar as Dev 1 (mma667, MichaelMar7)
     - Participated in the domain model discussion.
@@ -19,6 +37,7 @@
     - Successfully fixed updateConcert method, 1 test passed.
     - Implemented BookinqRequest.java, SeatMapper.java, BookingRequestMapper.java, BookingMapper.java
     - Implemented getSeatsForDate (1 test passed) & makebooking (need fixing)
+    - Rewrote 'Domain Model Structure' section
 - Alexandre Szelag Dev 3 (asze997, Clavides)
     - Participated in the domain model discussion.
     - Implemented features such as Booking, UserMapper 
@@ -30,10 +49,6 @@
 
 ## Concurrency Error Minimization Strategy
 
+placeholder
 
 
-## Domain Model Organisation
-
-Our domain model has a hierarchical structure of classes. 
-Each class represents a thing in the system and has its own data and logic. 
-We use associations and object-oriented design rules to connect classes.
