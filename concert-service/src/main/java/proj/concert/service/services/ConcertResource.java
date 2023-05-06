@@ -352,6 +352,11 @@ public class ConcertResource {
                         .setParameter("date", request.getDate());
                 List<Seat> seats = seatQuery.getResultList();
 
+                if (seats.isEmpty()) {
+                    LOGGER.debug("No seats found for label " + label + " and date " + request.getDate());
+                    return Response.status(Response.Status.NOT_FOUND).build();
+                }
+
                 for (Seat s : seats) {
                     if (s.getLabel().equals(label)) {
                         if (!s.isBooked()) {
@@ -360,6 +365,7 @@ public class ConcertResource {
                             seatsToBook.add(s);
                             em.merge(s);
                         } else {
+                            LOGGER.debug("Seat " + label + " is already booked.");
                             return Response.status(Response.Status.FORBIDDEN).build();
                         }
                     }
@@ -379,7 +385,7 @@ public class ConcertResource {
 
             LOGGER.debug("makeBooking(): Created booking with ID " + booking.getBookingId() + " for concert ID " + booking.getConcertId() + " attached to User ID " + booking.getUserId());
             builder = Response
-                    .created(URI.create("/concert-service/bookings/" + booking.getConcertId()))
+                    .created(URI.create("/concert-service/bookings/" + booking.getBookingId()))
                     .entity(BookingMapper.toDto(booking));
             LOGGER.debug("makeBooking(): URI: " + builder.build().getLocation());
         }
@@ -392,6 +398,7 @@ public class ConcertResource {
 
         return builder.build();
     }
+
 
     @GET
     @Path("/bookings")
