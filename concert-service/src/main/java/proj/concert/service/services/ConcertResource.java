@@ -352,6 +352,11 @@ public class ConcertResource {
                         .setParameter("date", request.getDate());
                 List<Seat> seats = seatQuery.getResultList();
 
+                if (seats.isEmpty()) {
+                    LOGGER.debug("No seats found for label " + label + " and date " + request.getDate());
+                    return Response.status(Response.Status.NOT_FOUND).build();
+                }
+
                 for (Seat s : seats) {
                     if (s.getLabel().equals(label)) {
                         if (!s.isBooked()) {
@@ -360,6 +365,7 @@ public class ConcertResource {
                             seatsToBook.add(s);
                             em.merge(s);
                         } else {
+                            LOGGER.debug("Seat " + label + " is already booked.");
                             return Response.status(Response.Status.FORBIDDEN).build();
                         }
                     }
@@ -379,7 +385,7 @@ public class ConcertResource {
 
             LOGGER.debug("makeBooking(): Created booking with ID " + booking.getBookingId() + " for concert ID " + booking.getConcertId() + " attached to User ID " + booking.getUserId());
             builder = Response
-                    .created(URI.create("/concert-service/bookings/" + booking.getConcertId()))
+                    .created(URI.create("/concert-service/bookings/" + booking.getBookingId()))
                     .entity(BookingMapper.toDto(booking));
             LOGGER.debug("makeBooking(): URI: " + builder.build().getLocation());
         }
@@ -392,6 +398,7 @@ public class ConcertResource {
 
         return builder.build();
     }
+
 
     @GET
     @Path("/bookings")
@@ -439,25 +446,36 @@ public class ConcertResource {
     @Path("/bookings/{id}")
     public Response getSingleBookingForUser(@PathParam("id") Long id, @CookieParam("auth") Cookie auth) {
 
-        // TODO id is the concert_id, need to grab all bookings that has user id and concert id
-        NewCookie cookie = makeCookie(auth);
         if (auth == null) {
             LOGGER.debug("getSingleBookingForUser(): No cookie found >:(");
-            builder = Response.status(Response.Status.UNAUTHORIZED);
+            return Response.status(Response.Status.UNAUTHORIZED).build();
         } else {
             LOGGER.debug("getSingleBookingForUser(): Found cookie! UUID string: " + auth.getValue());
 
             try {
-                // TODO implement this please
+                tx.begin();
+                TypedQuery<User> userQuery = em.createQuery("select u from User u where u.uuid = :uuid", User.class)
+                        .setParameter("uuid", auth.getValue());
+                User user = userQuery.getSingleResult();
+
+                Booking booking = em.find(Booking.class, id);
+                tx.commit();
+
+                if (booking == null || !Objects.equals(booking.getUserId(), user.getId())) {
+                    return Response.status(Response.Status.FORBIDDEN).build();
+                } else {
+                    BookingDTO bookingDTO = BookingMapper.toDto(booking);
+                    return Response.ok(bookingDTO).build();
+                }
+
+            } catch (NoResultException e) {
+                return Response.status(Response.Status.NOT_FOUND).build();
             } finally {
                 em.close();
             }
-
         }
-
-        builder = Response.status(Response.Status.UNAUTHORIZED);
-        return builder.build();
     }
+
 
 
 //    @GET
