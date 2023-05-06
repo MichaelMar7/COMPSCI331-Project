@@ -48,6 +48,8 @@ All discussions made as a team was primarily conducted on a private Discord serv
 
 ## Concurrency Error Minimization Strategy
 
+![Alt Text](https://media.tenor.com/eG92TE7ABpQAAAAd/what-forreal.gif)
+
 placeholder
 
 
