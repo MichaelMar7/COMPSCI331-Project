@@ -319,6 +319,7 @@ public class ConcertResource {
             tx.begin();
 
             BookingRequest request = BookingRequestMapper.toDomainModel(bookingRequestDTO);
+            LOGGER.debug("" + request.getSeatLabels() + " " + request.getSeatLabels().size());
             TypedQuery<Concert> concertQuery = em
                     .createQuery("select c from Concert c where c.id = :id", Concert.class)
                     .setParameter("id", request.getConcertId());
@@ -358,16 +359,14 @@ public class ConcertResource {
                 }
 
                 for (Seat s : seats) {
-                    if (s.getLabel().equals(label)) {
-                        if (!s.isBooked()) {
-                            s.setBooked(true);
-                            s.setBookingStatus(BookingStatus.Booked);
-                            seatsToBook.add(s);
-                            em.merge(s);
-                        } else {
-                            LOGGER.debug("Seat " + label + " is already booked.");
-                            return Response.status(Response.Status.FORBIDDEN).build();
-                        }
+                    if (s.getLabel().equals(label) && !s.isBooked()) {
+                        s.setBooked(true);
+                        s.setBookingStatus(BookingStatus.Booked);
+                        seatsToBook.add(s);
+                        em.merge(s);
+                    } else {
+                        LOGGER.debug("Seat " + label + " is already booked.");
+                        return Response.status(Response.Status.FORBIDDEN).build();
                     }
                 }
             }
@@ -381,6 +380,14 @@ public class ConcertResource {
             user.addBooking(booking);
             em.persist(booking);
             em.merge(user);
+
+            List<Seat> remainingSeats = em.createQuery("select s from Seat s where s.date = :date and s.isBooked = :isBooked", Seat.class)
+                    .setParameter("date", booking.getDate())
+                    .setParameter("isBooked", false)
+                    .getResultList();
+            if (subs.size() != 0) {
+                notification(new ConcertRemainingSeats(booking.getConcertId(), remainingSeats.size()));
+            }
             tx.commit();
 
             LOGGER.debug("makeBooking(): Created booking with ID " + booking.getBookingId() + " for concert ID " + booking.getConcertId() + " attached to User ID " + booking.getUserId());
@@ -477,11 +484,11 @@ public class ConcertResource {
     }
 
     @GET
-    public void notification(ConcertInfoNotificationDTO notification) {
+    public void notification(ConcertRemainingSeats notification) {
         synchronized (subs) {
             for (Map.Entry<ConcertInfoSubscriptionDTO, AsyncResponse> sub : subs.entrySet()) {
-                if (/*sub.getKey().getConcertId() == notfication.getConcertId &&*/ sub.getKey().getPercentageBooked() < 60) {
-                    sub.getValue().resume(sub.getKey().getPercentageBooked());
+                if (sub.getKey().getConcertId() == notification.getConcertId() && notification.getRemainingSeats() < 60) {
+                    sub.getValue().resume(notification.getRemainingSeats());
                     subs.put(sub.getKey(), sub.getValue());
                 }
             }
