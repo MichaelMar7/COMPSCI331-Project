@@ -27,6 +27,11 @@ All discussions made as a team was primarily conducted on a private Discord serv
     - Started on subscription and updated subscriptions methods
     - Fixed booking methods
     - re-commented subscription tests
+    - Implemented cookie authentication in subscription.
+    - Fixed authentication for subscription.
+    - Removed notification and subscription classes and mappers.
+    - Fixed subscription method
+    - Completed GET subscription method
 - Dylan Choy as Dev 2 and Team Leader (dcho282, ghxstling)
     - Implemented ConcertApplication class and annotated Concert and Performer domain models appropriately.
     - Ran DomainModelTest, all tests passed.
@@ -38,15 +43,29 @@ All discussions made as a team was primarily conducted on a private Discord serv
     - Implemented BookinqRequest.java, SeatMapper.java, BookingRequestMapper.java, BookingMapper.java
     - Implemented getSeatsForDate (1 test passed) & makebooking (need fixing)
     - Rewrote 'Domain Model Structure' section in Organisation.md
+    - Continued debugging GET methods for Bookings (testGetOwnBookingById).
+    - Tweaked URI for getAllBookingsForUser, added getSingleBookingForUser.
+    - Tweaked getBookingById
+    - Add bookings field, getBookings, setBookings, and addBooking methods to User.java.
+    - Fixed user cookie auth not persisting.
+    - Began implementation of getBooking(), added findUserByUuid() helper method.
+    - Refactored login() and getSeatsForDate(), fixed makeBooking().
+    - Added uuids field, getUuids, and addUuids in User.java.
+    - Add userId field and getter/setter for Booking.java.
+    - Add uuid field for cookie auth in User
     - Updated 'Concurrency Error Minimization Strategy' section in Organisation.md 
     - Cleaned up code in User and ConcertResource
     - Pushed to submission branch :)
 - Alexandre Szelag Dev 3 (asze997, Clavides)
     - Participated in the domain model discussion.
     - Implemented features such as Booking, UserMapper 
+    - Created UserMapper for User.java and UserDTO conversion
     - Updates to ConcertResource in order to implement login method.
     - Contributed to resolving issues and code reviews.
     - Created Organisation.md and made the initial draft 
+    - Updated Organisation.md 
+    - Updated makeBooking to handle auth cookie check.
+    - Finished implementing getSingleBookingForUser.
     - Updated 'Changelog' section in Organisation.md 
 
 ## Concurrency Error Minimization Strategy
@@ -96,7 +115,6 @@ public Response makeBooking(BookingRequestDTO bookingRequestDTO, @CookieParam("a
         user.addBooking(booking);
         em.persist(booking);
         em.merge(user);
-
         List<Seat> remainingSeats = em.createQuery("select s from Seat s where s.date = :date and s.isBooked = :isBooked", Seat.class) ...
         
         ...
