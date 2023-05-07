@@ -250,13 +250,10 @@ public class ConcertResource {
 
                 if (user.getUuid() == null) {
                     cookie = makeCookie(null);
-                    auth = cookie.toCookie();
                     user.setUuid(cookie.getValue());
-                    user.addUuids(cookie.getValue());
                     em.merge(user);
                 } else {
                     cookie = NewCookie.valueOf(user.getUuid());
-                    auth = cookie.toCookie();
                 }
                 tx.commit();
 

@@ -25,8 +25,6 @@ public class User {
     private Long version;
     @Column(name = "UUID")
     private String uuid = null;
-    @ElementCollection(fetch = FetchType.LAZY)
-    private List<String> uuids = new ArrayList<>();
     @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL, mappedBy = "userId")
     private List<Booking> bookings = new ArrayList<>();
 
@@ -48,8 +46,6 @@ public class User {
     public Long getVersion() { return version; }
     public String getUuid() { return uuid; }
     public void setUuid(String uuid) { this.uuid = uuid; }
-    public List<String> getUuids() { return uuids; }
-    public void addUuids(String uuid) { uuids.add(uuid); }
     public List<Booking> getBookings() { return bookings; }
     public void setBookings(List<Booking> bookings) { this.bookings = bookings; }
     public void addBooking(Booking booking) { bookings.add(booking); }
