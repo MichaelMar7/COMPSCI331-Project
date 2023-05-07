@@ -386,7 +386,7 @@ public class ConcertResource {
                     .setParameter("isBooked", false)
                     .getResultList();
             if (subs.size() != 0) {
-                notification(new ConcertRemainingSeats(booking.getConcertId(), remainingSeats.size()));
+                notification(booking.getConcertId(), remainingSeats.size());
             }
             tx.commit();
 
@@ -484,11 +484,11 @@ public class ConcertResource {
     }
 
     @GET
-    public void notification(ConcertRemainingSeats notification) {
+    public void notification(long concertId, long remainingSeats) {
         synchronized (subs) {
             for (Map.Entry<ConcertInfoSubscriptionDTO, AsyncResponse> sub : subs.entrySet()) {
-                if (sub.getKey().getConcertId() == notification.getConcertId() && notification.getRemainingSeats() < 60) {
-                    sub.getValue().resume(notification.getRemainingSeats());
+                if (sub.getKey().getConcertId() == concertId && remainingSeats < 60) {
+                    sub.getValue().resume(remainingSeats);
                     subs.put(sub.getKey(), sub.getValue());
                 }
             }
